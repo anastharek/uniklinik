@@ -671,9 +671,20 @@ const _isDisplaySetActive = function(
  * @param {string} activeDisplaySetInstanceUID
  */
 const _mapStudiesToThumbnails = function(studies, activeDisplaySetInstanceUID) {
+  // PadiMedical: filter out non-displayable series from thumbnails
+  const hidePresentationStates = displaySet => {
+    const sopClass = displaySet.SOPClassUIDNaturalized || '';
+    const modality = displaySet.Modality || '';
+    if (sopClass === 'RawData' || modality === 'RawData') return true;
+    if (sopClass.includes('PresentationState') || modality === 'PR') return true;
+    return false;
+  };
+
   return studies.map(study => {
     const { StudyInstanceUID } = study;
-    const thumbnails = study.displaySets.map(displaySet => {
+    const thumbnails = study.displaySets
+      .filter(displaySet => !hidePresentationStates(displaySet))
+      .map(displaySet => {
       const {
         displaySetInstanceUID,
         SeriesDescription,
