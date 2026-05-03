@@ -75,11 +75,7 @@ function StudyBrowser(props) {
                       }}
                       title="Load this series into the viewer"
                     >
-                      {active ? (
-                        <span className="download-loaded">✓ Loaded</span>
-                      ) : (
-                        <span>⬇ Load Series</span>
-                      )}
+                      ⬇ Load Series
                     </button>
                   )}
                 </div>
