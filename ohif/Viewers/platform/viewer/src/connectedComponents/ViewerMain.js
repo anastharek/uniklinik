@@ -188,12 +188,13 @@ class ViewerMain extends Component {
         const error = new Error('Source data not present');
         const message = 'Source data not present';
         LoggerService.error({ error, message });
-        UINotificationService.show({
-          autoClose: false,
-          title: 'Fail to load series',
-          message,
-          type: 'error',
-        });
+        // PadiMedical: suppress notification for non-image series (RawData, SR, PR etc)
+        // UINotificationService.show({
+        //   autoClose: false,
+        //   title: 'Fail to load series',
+        //   message,
+        //   type: 'error',
+        // });
       }
     }
 
@@ -201,12 +202,13 @@ class ViewerMain extends Component {
       const error = new Error('Modality not supported');
       const message = 'Modality not supported';
       LoggerService.error({ error, message });
-      UINotificationService.show({
-        autoClose: false,
-        title: 'Fail to load series',
-        message,
-        type: 'error',
-      });
+      // PadiMedical: suppress notification - harmless for non-image modalities
+      // UINotificationService.show({
+      //   autoClose: false,
+      //   title: 'Fail to load series',
+      //   message,
+      //   type: 'error',
+      // });
     }
 
     this.props.setViewportSpecificData(viewportIndex, displaySet);

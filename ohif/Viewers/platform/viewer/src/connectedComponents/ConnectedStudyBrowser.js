@@ -81,24 +81,26 @@ const mapDispatchToProps = (dispatch, ownProps) => {
         const error = new Error('Source data not present');
         const message = 'Source data not present';
         LoggerService.error({ error, message });
-        UINotificationService.show({
-          autoClose: false,
-          title: 'Fail to load series',
-          message,
-          type: 'error',
-        });
+        // PadiMedical: suppress notification for non-image series
+        // UINotificationService.show({
+        //   autoClose: false,
+        //   title: 'Fail to load series',
+        //   message,
+        //   type: 'error',
+        // });
       }
 
       if (displaySet.isSOPClassUIDSupported === false) {
         const error = new Error('Modality not supported');
         const message = 'Modality not supported';
         LoggerService.error({ error, message });
-        UINotificationService.show({
-          autoClose: false,
-          title: 'Fail to load series',
-          message,
-          type: 'error',
-        });
+        // PadiMedical: suppress notification - harmless for non-image modalities
+        // UINotificationService.show({
+        //   autoClose: false,
+        //   title: 'Fail to load series',
+        //   message,
+        //   type: 'error',
+        // });
       }
 
       dispatch(setActiveViewportSpecificData(displaySet));
