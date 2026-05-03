@@ -687,17 +687,19 @@ const _mapStudiesToThumbnails = function(studies, activeDisplaySetInstanceUID) {
       .map(displaySet => {
       const {
         displaySetInstanceUID,
+        SeriesInstanceUID,
         SeriesDescription,
         numImageFrames,
         SeriesNumber,
+        Modality,
       } = displaySet;
 
       let imageId;
       let altImageText;
 
-      if (displaySet.Modality && displaySet.Modality === 'SEG') {
+      if (Modality === 'SEG') {
         altImageText = 'SEG';
-      } else if (displaySet.Modality && displaySet.Modality === 'SR') {
+      } else if (Modality === 'SR') {
         altImageText = 'SR';
       } else if (displaySet.images && displaySet.images.length) {
         const imageIndex = Math.floor(displaySet.images.length / 2);
@@ -705,7 +707,7 @@ const _mapStudiesToThumbnails = function(studies, activeDisplaySetInstanceUID) {
       } else if (displaySet.isSOPClassUIDSupported === false) {
         altImageText = displaySet.SOPClassUIDNaturalized;
       } else {
-        altImageText = displaySet.Modality ? displaySet.Modality : 'UN';
+        altImageText = Modality || 'UN';
       }
 
       const hasWarnings = _checkForSeriesInconsistencesWarnings(displaySet);
@@ -724,9 +726,11 @@ const _mapStudiesToThumbnails = function(studies, activeDisplaySetInstanceUID) {
         imageId,
         altImageText,
         displaySetInstanceUID,
+        SeriesInstanceUID,
         SeriesDescription,
         numImageFrames,
         SeriesNumber,
+        Modality,
         hasWarnings,
         hasDerivedDisplaySets,
       };
