@@ -35,3 +35,12 @@ body {
   opacity: 0;
   transition: opacity 200ms;
 }
+
+/* Hide Error Loading Image indicators - PadiMedical */
+/* These errors occur for non-image series (PR, SR, RawData) and are harmless */
+.imageViewerErrorLoadingIndicator,
+.loadingIndicator.imageViewerErrorLoadingIndicator,
+[class*="ErrorLoading"],
+[class*="errorLoading"] {
+  display: none !important;
+}
