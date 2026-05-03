@@ -239,6 +239,15 @@ class StudyMetadata extends Metadata {
       displaySets.push(displaySet);
     }
 
+    // PadiMedical: filter out non-displayable series from the thumbnail browser
+    displaySets = displaySets.filter(displaySet => {
+      const sopClass = displaySet.SOPClassUIDNaturalized || '';
+      const modality = displaySet.Modality || '';
+      if (sopClass === 'RawData' || modality === 'RawData') return false;
+      if (sopClass.includes('PresentationState') || modality === 'PR') return false;
+      return true;
+    });
+
     return displaySets;
   }
 
