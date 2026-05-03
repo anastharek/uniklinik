@@ -81,7 +81,9 @@ class ViewerMain extends Component {
   }
 
   fillEmptyViewportPanes = () => {
-    // TODO: Here is the entry point for filling viewports on load.
+    // PadiMedical: Only auto-fill the first viewport to prevent loading
+    // all series simultaneously (crashes on large studies).
+    // User can manually load other series via the thumbnail buttons.
     const dirtyViewportPanes = [];
     const { layout, viewportSpecificData } = this.props;
     const { displaySets } = this.state;
@@ -96,6 +98,12 @@ class ViewerMain extends Component {
         viewportPane &&
         viewportPane.StudyInstanceUID &&
         viewportPane.displaySetInstanceUID;
+
+      if (i > 0) {
+        // Only auto-fill viewport 0; leave others empty for manual loading
+        dirtyViewportPanes.push(null);
+        continue;
+      }
 
       if (isNonEmptyViewport) {
         dirtyViewportPanes.push({
