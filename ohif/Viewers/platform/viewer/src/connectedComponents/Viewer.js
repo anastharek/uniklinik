@@ -708,14 +708,8 @@ const _mapStudiesToThumbnails = function(studies, activeDisplaySetInstanceUID) {
       } else if (Modality === 'SR') {
         altImageText = 'SR';
       } else if (displaySet.images && displaySet.images.length) {
-        if (isActive) {
-          // Only load full DICOM thumbnail for the active series
-          const imageIndex = Math.floor(displaySet.images.length / 2);
-          imageId = displaySet.images[imageIndex].getImageId();
-        } else {
-          // Text-only preview - no network request, saves bandwidth
-          altImageText = (SeriesDescription || Modality || 'Series').substring(0, 20);
-        }
+        const imageIndex = Math.floor(displaySet.images.length / 2);
+        imageId = displaySet.images[imageIndex].getImageId();
       } else if (displaySet.isSOPClassUIDSupported === false) {
         altImageText = displaySet.SOPClassUIDNaturalized;
       } else {

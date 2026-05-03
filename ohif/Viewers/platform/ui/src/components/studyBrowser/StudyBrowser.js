@@ -35,7 +35,7 @@ function StudyBrowser(props) {
               } = thumb;
 
               // Show button for real image series (not SR, SEG, PR, RawData)
-              const showLoad = imageId && Modality !== 'SR' && Modality !== 'SEG' && Modality !== 'PR';
+              const showLoad = Modality && Modality !== 'SR' && Modality !== 'SEG' && Modality !== 'PR';
 
               return (
                 <div
