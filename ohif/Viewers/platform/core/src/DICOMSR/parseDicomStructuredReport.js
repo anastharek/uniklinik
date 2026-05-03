@@ -37,12 +37,13 @@ const parseDicomStructuredReport = (
     } catch (error) {
       const seriesDescription = dataset.SeriesDescription || '';
       LoggerService.error({ error, message: error.message });
-      UINotificationService.show({
-        title: `Failed to parse ${seriesDescription} SR display set`,
-        message: error.message,
-        type: 'error',
-        autoClose: false,
-      });
+      // PadiMedical: suppress notification for structured report parse failures
+      // UINotificationService.show({
+      //   title: `Failed to parse ${seriesDescription} SR display set`,
+      //   message: error.message,
+      //   type: 'error',
+      //   autoClose: false,
+      // });
       return;
     }
   }
@@ -55,12 +56,13 @@ const parseDicomStructuredReport = (
   } catch (error) {
     const seriesDescription = dataset.SeriesDescription || '';
     LoggerService.error({ error, message: error.message });
-    UINotificationService.show({
-      title: `Failed to parse ${seriesDescription} measurement report`,
-      message: error.message,
-      type: 'error',
-      autoClose: false,
-    });
+    // PadiMedical: suppress notification for measurement report parse failures
+    // UINotificationService.show({
+    //   title: `Failed to parse ${seriesDescription} measurement report`,
+    //   message: error.message,
+    //   type: 'error',
+    //   autoClose: false,
+    // });
     return;
   }
 
