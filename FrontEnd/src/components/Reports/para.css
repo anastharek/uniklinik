@@ -1,0 +1,55 @@
+#area p {
+  margin-bottom: 2px !important;
+  line-height: 25px;
+}
+
+#area {
+  width: max-content;
+  min-width:800px;
+}
+
+.box {
+  border: 0.5px solid gray;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 10px 20px;
+  margin-bottom: 20px;
+}
+
+
+
+.avatar-area{
+  position: sticky;
+  top: 0;
+  margin-left: auto;
+  width: max-content;
+  z-index: 999999;
+  display: flex;
+  justify-content: right;
+}
+
+
+@media screen and (max-width: 768px) {
+  #main{
+    width: 100%;
+  }
+  .view-report-area{
+    display: none;
+  }
+  .button-section-report br{
+    display: none;
+  }
+  .button-section-report{
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+  .button-section-report div{
+    width: 100%;
+    margin-bottom: 10px;
+  }
+  .button-section-report button{
+    width: 100% !important;
+    margin-bottom: 10px;
+  }
+}

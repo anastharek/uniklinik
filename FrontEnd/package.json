@@ -1,0 +1,99 @@
+{
+  "name": "padimedicaljsfront",
+  "version": "0.7.0",
+  "private": true,
+  "dependencies": {
+    "@david.kucsai/react-pdf-table": "^0.4.1",
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@material-ui/core": "^4.12.1",
+    "@material-ui/data-grid": "^4.0.0-alpha.37",
+    "@material-ui/icons": "^4.11.2",
+    "@material-ui/lab": "^4.0.0-alpha.60",
+    "@mui/material": "^6.1.6",
+    "@mui/x-data-grid": "^4.0.0",
+    "@react-pdf/font": "2.2.0",
+    "@react-pdf/renderer": "2.1.1",
+    "@toast-ui/react-image-editor": "^3.15.0",
+    "apexcharts": "3.37.0",
+    "axios": "^1.6.0",
+    "bootstrap": "^5.0.2",
+    "commander": "^10.0.0",
+    "crypto-js": "^4.1.1",
+    "date-fns": "^2.30.0",
+    "dayjs": "^1.11.7",
+    "disable-devtool": "^0.3.7",
+    "fetch-intercept": "^2.4.0",
+    "html2canvas": "^1.4.1",
+    "html5-qrcode": "^2.3.8",
+    "http-proxy-middleware": "^2.0.1",
+    "jspdf": "^2.5.1",
+    "moment": "^2.29.1",
+    "papaparse": "5.4.1",
+    "pdfjs-dist": "2.2.228",
+    "pdfmake": "^0.2.5",
+    "react": "^17.0.2",
+    "react-alert": "^7.0.3",
+    "react-apexcharts": "1.4.0",
+    "react-big-calendar": "^1.6.9",
+    "react-bootstrap": "^2.0.0-beta.2",
+    "react-bootstrap-sweetalert": "^5.2.0",
+    "react-bootstrap-typeahead": "6.0.0-rc.3",
+    "react-circular-progressbar": "^2.0.4",
+    "react-dom": "^17.0.2",
+    "react-dropzone": "^11.3.4",
+    "react-export-excel-fixed-xlsx": "^0.5.3",
+    "react-export-excel-hot-fix": "^0.5.7",
+    "react-numeric-input": "^2.2.3",
+    "react-qr-reader": "^3.0.0-beta-1",
+    "react-qrcode-logo": "2.5.0",
+    "react-redux": "^7.2.4",
+    "react-router-dom": "^5.2.0",
+    "react-scripts": "^4.0.3",
+    "react-select": "^4.3.1",
+    "react-smart-dynamic-table": "^1.0.20",
+    "react-table": "^7.7.0",
+    "react-toastify": "^7.0.4",
+    "react-toggle": "^4.1.2",
+    "react-tooltip": "^4.2.21",
+    "redux": "^4.1.0",
+    "redux-thunk": "^2.3.0",
+    "socket.io-client": "^4.5.1",
+    "streamsaver": "^2.0.5",
+    "web-streams-polyfill": "^3.0.3",
+    "worker-loader": "^3.0.8",
+    "xlsx": "^0.18.5"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "node-sass": "^6.0.1"
+  },
+  "resolutions": {
+    "@react-pdf/font": "2.2.0",
+    "caniuse-lite": "1.0.30001632"
+  },
+  "overrides": {
+    "caniuse-lite": "1.0.30001632",
+    "qrcode-generator": "1.4.4"
+  }
+}

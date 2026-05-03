@@ -1,0 +1,32 @@
+.summery-card{
+    /* shadow-sm w-max rounded overflow-hidden */
+    width: max-content;
+    border-radius: 10px;
+    overflow: hidden;  
+    box-shadow: 0px 0px 10px 0px rgba(0,0,0,0.1);
+    width: 90%; 
+    max-width: 200px;
+    margin: 0px 5%;
+    padding-top: 10px;
+}
+
+.summery-card .label-area{
+color:#fff;
+padding:10px 5px;
+text-align:center;
+white-space: nowrap;
+}
+
+.summary-card-wrapper{
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+}
+
+@media screen and (max-width:700px) {
+    .summary-card-wrapper{
+        display: grid;
+        grid-template-columns: repeat(3,1fr);
+    }
+    
+}

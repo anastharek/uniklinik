@@ -1,0 +1,29 @@
+.dot1{
+    animation: jump 1s 1s infinite;
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+.dot2{
+    animation: jump 2s 1s infinite;
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+.dot3{
+  animation: jump 3s 1s infinite;
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+@keyframes jump {
+    0%{
+      
+    }
+    50%{
+        color: #fff;
+    }
+    100%{
+       
+    }
+}

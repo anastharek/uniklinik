@@ -1,0 +1,26 @@
+[
+  {
+    "header": "Description",
+    "columnData": [
+      "1 Thoracic cage",
+      "2 Heart Shape and Size (CTR if application)",
+      "3 Lung Fields",
+      "4 Mediastinum and Hila",
+      "5 Pleural/Hemidiaphragms/ Costophrenic angles",
+      "6 Focal Lesion e.g PTB (Old/New) , malignancy",
+      "7 Any Other abnormalities"
+    ]
+  },
+  {
+    "header": "Abnormal",
+    "columnData": []
+  },
+  {
+    "header": "Normal",
+    "columnData": ["Y", "Y", "Y", "Y", "Y", "Y", "Y"]
+  },
+  {
+    "header": "Details of Abnormality",
+    "columnData": []
+  }
+]

@@ -1,0 +1,4 @@
+.request-feature-content,.request-feature-content .modal-dialog {
+    max-width: 800px !important;
+    width: 90%;
+}

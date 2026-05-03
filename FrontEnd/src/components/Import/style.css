@@ -1,0 +1,9 @@
+.RichTextEditor__root___2QXK-{
+  min-height: 250px;
+}
+
+@media screen and (max-width: 480px) {
+    .responsive {
+      left: 0% !important;
+    }
+  }

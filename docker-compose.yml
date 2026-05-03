@@ -1,0 +1,217 @@
+#version: "2"
+#if needed to map the orthancPACS to a different hard disk device (after mounting it in path)
+# volumes: ["/home/petctviewer/orthanc:/var/lib/orthanc/db:Z"]
+
+services:
+
+    padipacs:
+        image: pdml/padimedicalstroke5:3  #6 latest code #5 #7 change header and add logo sehat hospital #5 latest version before 28/10 #9 inventory update #8 Stable pm5.1 #7 sendto #padimedicaldemo5.0:5 #4 ASSIGN DOCKTOR request features #padimedicalgleneagle4.2:7 #padimedicaldemo5.0:1 #2 add new (okay but ad bugs) #1 issue create study(date,time incorrect)
+        build:
+          context: .
+        container_name: pmstroke5.1 #tukar
+        ports: ["9156:4000"] #tukar
+        restart: unless-stopped
+        volumes: ["./orthanc3:/var/lib/orthanc/db:Z"]
+        environment:
+            TZ: "Asia/Kuala_Lumpur"
+            ORTHANC_ADDRESS: "http://orthanc"
+            ORTHANC_PORT: "8042"
+            ORTHANC_USERNAME: "REDACTED"
+            ORTHANC_PASSWORD: "REDACTED"
+            DOMAIN_PROTOCOL: "https"
+            DOMAIN_ADDRESS: "stroke.padimedical.com" #tukar
+            REDIS_HOST: "redis"
+            REDIS_PORT: "6379"
+            REDIS_PASSWORD: ""
+            DB_HOST: "postgres"
+            DB_PORT: 5432
+            DB_NAME: "padimedical"
+
+    redis:
+        image: redis:alpine
+        container_name: redis-pmstroke5.1 #tukar
+        restart: unless-stopped
+
+    postgres:
+        container_name: postgres-pmstroke5.1 #tukar
+        image: postgres:13.1
+        ports: ["5490:5432"] #tukar
+        environment:
+            POSTGRES_DB: "padimedical"
+            POSTGRES_HOST_AUTH_METHOD: "trust"
+            PG_STORAGE_ENABLED: "true"
+            PG_INDEX_ENABLED: "true"
+        volumes:
+            - /mnt/PADI-NAS-02/RESEARCH/STROKE/STROKE-POSTGRESS:/var/lib/postgresql/data
+        restart: unless-stopped
+
+    orthanc:
+        build: orthanc-pacs
+        #image: orthancteam/orthanc:25.12.3-full #osimis/orthanc:23.3.4 #23.3.4
+        container_name: orthanc-pmstroke5.1 #tukar
+        depends_on: [postgres]
+        ports: ["8475:8042", "4371:4242"] #tukar
+        restart: unless-stopped
+        volumes: ["/mnt/PADI-NAS-02/RESEARCH/STROKE/ORTHANC:/var/lib/orthanc/db:Z"]
+        environment:
+            ORTHANC__NAME: "STROKE" #exchange
+            VERBOSE_STARTUP: "true"
+            TRACE_ENABLED: "true"
+
+            ORTHANC__DICOM_SERVER_ENABLED: "true"
+            ORTHANC__LUA_SCRIPTS: '["/etc/orthanc/scripts/modify.lua"]'
+            ORTHANC__OVERWRITE_INSTANCES: "true"
+            
+            ORTHANC__DICOM_MODALITIES_IN_DATABASE: "true"
+            ORTHANC__ORTHANC_PEERS_IN_DATABASE: "true"
+
+            DICOM_WEB_PLUGIN_ENABLED: "true"
+            OSIMIS_WEB_VIEWER1_PLUGIN_ENABLED: "true"
+            PYTHON_PLUGIN_ENABLED: "true"
+            TRANSFERS_PLUGIN_ENABLED: "true"
+            WORKLISTS_PLUGIN_ENABLED: "false"
+
+            AUTHORIZATION_PLUGIN_ENABLE: "false"
+            ORTHANC__AUTHENTICATION_ENABLE: "false"
+            ORTHANC__AUTHENTICATION_ENABLED: "false"
+
+            ORTHANC__REGISTERED_USERS: |
+                {"REDACTED": "REDACTED"}
+
+            ORTHANC__DICOM_WEB__ENABLE: "true"
+            ORTHANC__DICOM_WEB__ROOT: "/dicom-web/"
+            ORTHANC__DICOM_WEB__ENABLEWADO: "true"
+            ORTHANC__DICOM_WEB__WADOROOT: "/wado"
+            ORTHANC__DICOM_WEB__SSL: "true"
+            ORTHANC__DICOM_WEB__STUDIESMETADATA: "MainDicomTags"
+            ORTHANC__DICOM_WEB__SERIESMETADATA: "Full"
+
+            ORTHANC__DICOM__AET: "STROKE" #exchange
+
+            ORTHANC__POSTGRESQL__HOST: "postgres"
+            ORTHANC__POSTGRESQL__INDEX_CONNECTIONS_COUNT: "10"
+            ORTHANC__POSTGRESQL__MAXIMUM_CONNECTION_RETRIES: "10"
+            ORTHANC__POSTGRESQL__LOCK: "false"
+
+            #osimis setting
+            WVB_STUDY_DOWNLOAD_ENABLED: "false"
+            WVB_COMBINED_TOOL_ENABLED: "true"
+            WVB_KEY_IMAGE_CAPTURE_ENABLED: "true"
+            WVB_INSTANCE_INFO_CACHE_ENABLED: "true"
+            WVB_TOGGLE_OVERLAY_TEXT_BUTTON_ENABLED: "true"
+            WVB_ANNOTATIONS_STORAGE_ENABLED: "true"
+            WVB_CROSS_HAIR_ENABLED: "true"
+            WVB_REFERENCE_LINES_ENABLED: "true"
+            WVB_PRINT_ENABLED: "true"
+            WVB_CACHE_ENABLED: "true"
+            WVB_VIDEO_DISPLAY_ENABLED: "true"
+            WVB_DISPLAY_OVERLAY_TEXT: "true"
+            WVB_DOWNLOAD_AS_JPEG_ENABLED: "true"
+            WVB_SYNCHRONIZED_BROWSING_ENABLED: "true"
+            WVB_CUSTOM_COMMAND_ENABLED: "true"
+            WVB_CUSTOM_COMMAND_ICON_LABEL: "PADI"
+            WVB_CUSTOM_COMMAND_ICON_CLASS: "fas as-file-export"
+            OSIMIS_WEB_VIEWER1_SHOW_NO_REPORT_ICON_IN_SERIES_LIST: "true"
+            WVB_REDUCE_TIME_LINE_HEIGHT_ON_SINGLE_FRAME_SERIES: "true"
+            MVB_TOOLBAR_LAYOUT_MODE: "tree"
+            MVB_SHORT_TERM_CACHE_ENABLED: "true"
+            MVB_SHORT_TERM_CACHE_SIZE: "5000"
+            MVB_SHORT_TERM_CACHE_PREFETCH_ON_INSTANCE_STORED: "true"
+            MVB_HIGH_QUALITY_IMAGE_PRELOADING_ENABLED: "true"
+            MVP_SHOW_INFO_POPUP_AT_STARTUP: "never"
+            WVB_SHOW_INFO_PANEL_AT_STARTUP: "Never"
+            WVP_KEYBOARD_SHORTCUTS_ENABLED: "true"
+            WVP_LIVESHARE_ENABLED: "true"
+            DW_ENABLED: "true"
+
+            #General setting
+            ORTHANC__DICOM_ALWAYS_ALLOW_STORE: "true"
+            ORTHANC__LIMIT_FIND_RESULTS: "200" #exchange
+            ORTHANC__LIMIT_FIND_INSTANCES: "100"
+            ORTHANC__STABLE_AGE: "60"
+            ORTHANC__HTTPS_VERIFY_PEERS: "true"
+            ORTHANC__ORTHANC_EXPLORER_ENABLED: "true"
+            ORTHANC__MAXIMUM_STORAGE_SIZE: "100000" #Change storage size
+            ORTHANC__KEEP_ALIVE: "true"
+            ORTHANC__TCP_NO_DELAY: "true"
+            ORTHANC__STORAGE_ACCESS_ON_FIND: "Never"
+            ORTHANC__SAVE_JOBS: "false"
+
+            ORTHANC__DICOM_SCU_TIMEOUT: 0
+            ORTHANC__DICOM_SCP_TIMEOUT: 0
+            ORTHANC__DICOM_QUERY_RETRIEVE_SIZE: 0
+
+            ORTHANC__HTTP_REQUEST_TIMEOUT: "1000" ##default:60
+            ORTHANC__HTTP_TIMEOUT: "1000"         ##60
+            ORTHANC__HTTP_CL_TIMEOUT: "1000"      ##100
+
+            #setting to speed up
+            ORTHANC__CONCURRENT_JOBS: "0"
+            ORTHANC__TRANSFERS_RETRIES: "5"
+            ORTHANC__TRANSFERS_ENABLED: "true"
+            ORTHANC__DICOM_THREADS_COUNT: 16
+            ORTHANC__DICOM_UNKNOWN_SOP_CLASS_ACCEPTED: "true"
+            ORTHANC__SYNCHRONOUS_ZIP_STREAM: "true"
+            ORTHANC__MEDIA_ARCHIVE_SIZE: "100"
+            ORTHANC__MAXIMUM_STORAGE_MODE: "Recycle"
+            #transcoding
+            ORTHANC__HOUSEKEEPER_PLUGIN_ENABLED: "true"
+            ORTHANC__INGEST_TRANSCODING_OF_COMPRESSED: "true"
+            ORTHANC__OverwritesInstances: "true"
+            #GDCM
+            ORTHANC__GDCM__RESTRICT_TRANSFER_SYNTAXES: |
+              ["1.2.840.10008.5.1.4.1.1.77.1.6", "1.2.840.10008.1.2.4.90"]
+            #new env
+            VOLVIEW_PLUGIN_ENABLED: "true"
+            WSI_WEB_VIEWER_PLUGIN_ENABLED: "true"
+            STONE_WEB_VIEWER_PLUGIN_ENABLED: "true"
+            ORTHANC__STONE_WEB_VIEWER__SHOW_NOT_FOR_DIAGNOSTIC_USAGE_DISCLAIMER: "false"
+            ORTHANC__STONE_WEB_VIEWER__SHOW_INFO_PANEL_AT_STARTUP: "Never"
+            ORTHANC__STONE_WEB_VIEWER__SHOW_USER_PREFERENCES_BUTTON: "false"
+            ORTHANC__STONE_WEB_VIEWER__DOWNLOAD_DICOM_DIR: "false"
+            ORTHANC__STONE_WEB_VIEWER__SKIP_SERIES_DESCRIPTION_FROM_MODALITIES: |
+                ["CT", "Scout", "PR"]
+            ORTHANC__STONE_WEB_VIEWER__DOWNLOAD_STUDY_ENABLED: "false"
+            ORTHANC__STONE_WEB_VIEWER__DATE_FORMAT: "DD/MM/YYYY"
+
+            ORTHANC__EXTRA_MAIN_DICOM_TAGS: |
+              {
+                "Instance" : [
+                    "Rows",
+                    "Columns",
+                    "ImageType",
+                    "SOPClassUID",
+                    "ContentDate",
+                    "ContentTime",
+                    "FrameOfReferenceUID",
+                    "PixelSpacing",
+                    "SpecificCharacterSet",
+                    "BitsAllocated",
+                    "BitsStored",
+                    "RescaleSlope",
+                    "RescaleIntercept",
+                    "SliceThickness",
+                    "WindowCenter",
+                    "WindowWidth",
+                    "PhotometricInterpretation",
+                    "PixelRepresentation"
+                ],
+                "Series" : [
+                    "TimezoneOffsetFromUTC",
+                    "PerformedProcedureStepStartDate",
+                    "PerformedProcedureStepStartTime",
+                    "RequestAttributesSequence"
+                ],
+                "Study": [
+                    "TimezoneOffsetFromUTC"
+                ],
+                "Patient": []
+              }
+
+
+
+volumes:
+    padipacs:
+    orthanc:
+    postgres:
+
