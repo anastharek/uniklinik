@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Thumbnail } from './Thumbnail.js';
+import { shouldFilterSeries } from './SeriesFilterService';
 import './StudyBrowser.styl';
 
 function StudyBrowser(props) {
@@ -18,7 +19,9 @@ function StudyBrowser(props) {
         {studies
           .map((study, studyIndex) => {
             const { StudyInstanceUID } = study;
-            return study.thumbnails.map((thumb, thumbIndex) => {
+            return study.thumbnails
+              .filter(thumb => !shouldFilterSeries(thumb.SeriesDescription))
+              .map((thumb, thumbIndex) => {
               const {
                 active,
                 altImageText,

@@ -7,6 +7,7 @@ import { TabComponents } from '@ohif/ui';
 import { HotkeysPreferences } from './HotkeysPreferences';
 import { WindowLevelPreferences } from './WindowLevelPreferences';
 import { GeneralPreferences } from './GeneralPreferences';
+import { SeriesFilterPreferences } from './SeriesFilterPreferences';
 
 import './UserPreferences.styl';
 
@@ -24,6 +25,11 @@ const tabs = [
   {
     name: 'Window Level',
     Component: WindowLevelPreferences,
+    customProps: {},
+  },
+  {
+    name: 'Series Filter',
+    Component: SeriesFilterPreferences,
     customProps: {},
   },
 ];

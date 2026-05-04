@@ -1,0 +1,180 @@
+.SeriesFilterPreferences
+  padding: 20px
+  color: #fff
+
+  .filter-description
+    margin-bottom: 20px
+    p
+      font-size: 14px
+      line-height: 1.5
+      color: #ccc
+
+  .add-pattern-section
+    margin-bottom: 20px
+
+    label
+      display: block
+      margin-bottom: 8px
+      font-weight: 600
+      font-size: 14px
+
+    .input-group
+      display: flex
+      gap: 10px
+
+      input
+        flex: 1
+        padding: 8px 12px
+        border: 1px solid #555
+        border-radius: 4px
+        background: #333
+        color: #fff
+        font-size: 14px
+
+        &:focus
+          outline: none
+          border-color: #00a4d6
+
+        &::placeholder
+          color: #888
+
+      .add-btn
+        padding: 8px 16px
+        background: #00a4d6
+        color: #fff
+        border: none
+        border-radius: 4px
+        cursor: pointer
+        font-size: 14px
+
+        &:disabled
+          background: #555
+          cursor: not-allowed
+
+        &:hover:not(:disabled)
+          background: #0088b3
+
+  .suggested-patterns
+    margin-bottom: 20px
+
+    label
+      display: block
+      margin-bottom: 10px
+      font-weight: 600
+      font-size: 14px
+
+    .suggested-list
+      display: flex
+      flex-wrap: wrap
+      gap: 8px
+
+      .suggested-btn
+        padding: 6px 12px
+        background: #444
+        color: #ccc
+        border: 1px solid #555
+        border-radius: 4px
+        cursor: pointer
+        font-size: 13px
+        transition: all 0.2s
+
+        &:hover:not(:disabled)
+          background: #555
+          color: #fff
+
+        &:disabled
+          background: #2a4a3a
+          color: #6c9
+          border-color: #4a7
+          cursor: default
+
+  .blocked-list-section
+    label
+      display: block
+      margin-bottom: 10px
+      font-weight: 600
+      font-size: 14px
+
+    .no-blocked
+      color: #888
+      font-style: italic
+      padding: 10px 0
+
+    .blocked-list
+      list-style: none
+      padding: 0
+      margin: 0
+      max-height: 200px
+      overflow-y: auto
+
+      .blocked-item
+        display: flex
+        justify-content: space-between
+        align-items: center
+        padding: 10px 12px
+        background: #3a3a3a
+        border: 1px solid #444
+        border-radius: 4px
+        margin-bottom: 8px
+
+        .pattern-text
+          font-family: monospace
+          font-size: 14px
+          color: #ff9999
+
+        .remove-btn
+          width: 24px
+          height: 24px
+          background: #c44
+          color: #fff
+          border: none
+          border-radius: 4px
+          cursor: pointer
+          font-size: 18px
+          line-height: 1
+          display: flex
+          align-items: center
+          justify-content: center
+
+          &:hover
+            background: #d55
+
+.TabFooter
+  display: flex
+  justify-content: space-between
+  align-items: center
+  padding: 15px 20px
+  border-top: 1px solid #444
+  margin-top: 20px
+
+  .btn
+    padding: 8px 16px
+    border: none
+    border-radius: 4px
+    cursor: pointer
+    font-size: 14px
+
+    &.btn-danger
+      background: #c44
+      color: #fff
+
+      &:hover
+        background: #d55
+
+    &.btn-secondary
+      background: #555
+      color: #fff
+      margin-right: 10px
+
+      &:hover
+        background: #666
+
+    &.btn-primary
+      background: #00a4d6
+      color: #fff
+
+      &:hover
+        background: #0088b3
+
+  .right-buttons
+    display: flex
