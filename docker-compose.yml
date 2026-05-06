@@ -160,7 +160,7 @@ services:
             ORTHANC__OverwritesInstances: "true"
             #GDCM
             ORTHANC__GDCM__RESTRICT_TRANSFER_SYNTAXES: |
-              ["1.2.840.10008.5.1.4.1.1.77.1.6", "1.2.840.10008.1.2.4.90"]
+              ["1.2.840.10008.5.1.4.1.1.77.1.6", "1.2.840.10008.1.2.4.90", "1.2.840.10008.1.2.4.91"]
             #new env
             VOLVIEW_PLUGIN_ENABLED: "true"
             WSI_WEB_VIEWER_PLUGIN_ENABLED: "true"
