@@ -57,6 +57,7 @@ function StudyBrowser(props) {
                     derivedDisplaySetsNumber={derivedDisplaySetsNumber}
                     displaySetInstanceUID={displaySetInstanceUID}
                     numImageFrames={numImageFrames}
+                    seriesInstanceUid={SeriesInstanceUID}
                     SeriesDescription={SeriesDescription}
                     SeriesNumber={SeriesNumber}
                     Modality={Modality}

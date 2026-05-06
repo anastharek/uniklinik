@@ -21,6 +21,7 @@ function ImageThumbnail(props) {
     height,
     imageSrc,
     imageId,
+    seriesInstanceUid,
     stackPercentComplete,
     error: propsError,
     showProgressBar,
@@ -29,7 +30,11 @@ function ImageThumbnail(props) {
   const [isLoading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [image, setImage] = useState({});
+  const [previewSrc, setPreviewSrc] = useState(null);
   const canvasRef = createRef();
+
+  // Effective image source: prop or Orthanc preview
+  const effectiveImageSrc = imageSrc || previewSrc;
 
   let loadingOrError;
   let cancelablePromise;
@@ -43,8 +48,10 @@ function ImageThumbnail(props) {
   const showStackLoadingProgressBar =
     showProgressBar && stackPercentComplete !== undefined;
 
+  // Use Orthanc preview endpoint instead of cornerstone for thumbnails.
+  // This prevents cornerstone cache flooding on studies with many series (e.g. angiograms).
   const shouldRenderToCanvas = () => {
-    return imageId && !imageSrc;
+    return !effectiveImageSrc && imageId;
   };
 
   const fetchImagePromise = () => {
@@ -92,6 +99,27 @@ function ImageThumbnail(props) {
     }
   }, [canvasRef, image, image.imageId]);
 
+  // Fetch Orthanc series preview JPEG (bypasses cornerstone for thumbnails)
+  useEffect(() => {
+    if (imageId && seriesInstanceUid && !imageSrc && !previewSrc) {
+      fetch(`/api/series/${seriesInstanceUid}/preview`)
+        .then(r => {
+          if (!r.ok) throw new Error('Preview unavailable');
+          return r.blob();
+        })
+        .then(blob => URL.createObjectURL(blob))
+        .then(url => setPreviewSrc(url))
+        .catch(() => {});
+    }
+  }, [imageId, seriesInstanceUid, imageSrc, previewSrc]);
+
+  // Cleanup blob URL
+  useEffect(() => {
+    return () => {
+      if (previewSrc) URL.revokeObjectURL(previewSrc);
+    };
+  }, [previewSrc]);
+
   useEffect(() => {
     if (!image.imageId || image.imageId !== imageId) {
       purgeCancelablePromise();
@@ -114,8 +142,7 @@ function ImageThumbnail(props) {
         ) : (
           <img
             className="static-image"
-            src={imageSrc}
-            //width={this.props.width}
+            src={effectiveImageSrc}
             height={height}
             alt={''}
           />
@@ -139,6 +166,7 @@ ImageThumbnail.propTypes = {
   active: PropTypes.bool,
   imageSrc: PropTypes.string,
   imageId: PropTypes.string,
+  seriesInstanceUid: PropTypes.string,
   error: PropTypes.bool,
   width: PropTypes.number,
   height: PropTypes.number,

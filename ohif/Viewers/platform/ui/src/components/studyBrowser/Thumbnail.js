@@ -163,6 +163,7 @@ function Thumbnail(props) {
     displaySetInstanceUID,
     imageId,
     imageSrc,
+    seriesInstanceUid,
     StudyInstanceUID,
     onClick,
     onDoubleClick,
@@ -226,6 +227,7 @@ function Thumbnail(props) {
           active={active}
           imageSrc={imageSrc}
           imageId={imageId}
+          seriesInstanceUid={seriesInstanceUid}
           error={error}
           stackPercentComplete={stackPercentComplete}
           showProgressBar={showProgressBar}
@@ -251,6 +253,7 @@ Thumbnail.propTypes = {
   StudyInstanceUID: PropTypes.string.isRequired,
   imageSrc: PropTypes.string,
   imageId: PropTypes.string,
+  seriesInstanceUid: PropTypes.string,
   error: PropTypes.bool,
   active: PropTypes.bool,
   stackPercentComplete: PropTypes.number,
