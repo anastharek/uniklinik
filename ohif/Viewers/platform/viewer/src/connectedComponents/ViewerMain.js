@@ -67,6 +67,9 @@ class ViewerMain extends Component {
   }
 
   componentDidUpdate(prevProps) {
+    // PadiMedical: Only auto-fill on initial mount. When user clicks
+    // Load Series, Redux handles viewport switching. Calling
+    // fillEmptyViewportPanes here would override the selection.
     const prevViewportAmount = prevProps.layout.viewports.length;
     const viewportAmount = this.props.layout.viewports.length;
     const isVtk = this.props.layout.viewports.some(vp => !!vp.vtk);
@@ -76,7 +79,7 @@ class ViewerMain extends Component {
       (viewportAmount !== prevViewportAmount && !isVtk)
     ) {
       const displaySets = this.getDisplaySets(this.props.studies);
-      this.setState({ displaySets }, this.fillEmptyViewportPanes);
+      this.setState({ displaySets });
     }
   }
 
