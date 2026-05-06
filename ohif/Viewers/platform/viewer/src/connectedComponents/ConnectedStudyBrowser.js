@@ -103,11 +103,6 @@ const mapDispatchToProps = (dispatch, ownProps) => {
         // });
       }
 
-      // PadiMedical: clear cornerstone cache to stop loading previous series
-      if (window.cornerstone && window.cornerstone.imageCache) {
-        window.cornerstone.imageCache.purgeCache();
-      }
-
       dispatch(setActiveViewportSpecificData(displaySet));
     },
   };
