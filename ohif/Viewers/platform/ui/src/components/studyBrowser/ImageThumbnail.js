@@ -102,7 +102,7 @@ function ImageThumbnail(props) {
   // Fetch Orthanc series preview JPEG (bypasses cornerstone for thumbnails)
   useEffect(() => {
     if (imageId && seriesInstanceUid && !imageSrc && !previewSrc) {
-      fetch(`/api/series/${seriesInstanceUid}/preview`)
+      fetch(`/api/series/${seriesInstanceUid}/thumbnail`)
         .then(r => {
           if (!r.ok) throw new Error('Preview unavailable');
           return r.blob();

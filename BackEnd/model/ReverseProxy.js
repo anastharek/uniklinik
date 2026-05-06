@@ -87,11 +87,14 @@ const ReverseProxy = {
                     response.pipe(res)
                 } else if (response.statusCode === 401) {
                     res.status(403).send("Bad orthanc credentials")
-                } else {
+                } else if (!res.headersSent) {
                     res.status(response.statusCode).send(response.statusMessage)
                 }
             }).catch((error) => {
-                console.error(error)
+                if (!res.headersSent) {
+                    res.status(502).send('Orthanc unreachable')
+                }
+                console.error('ReverseProxy error:', error.message)
             })
     },
     streamToResFunction(api, method, data) {
