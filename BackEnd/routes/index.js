@@ -243,6 +243,8 @@ router.get("/series/:uid/thumbnail", [userAuthMidelware], async (req, res) => {
 router.get("/series/*", [userAuthMidelware], reverseProxyGet);
 router.get("/instances/*", [userAuthMidelware], reverseProxyGet);
 router.get("/dicom-web/*", [userOrExternalAuthMiddleware], reverseProxyGet);
+// PadiMedical: Exact /wado route (no redirect) for WADO-URI image rendering
+router.get("/wado", [userAuthMidelware], reverseProxyGet);
 router.get("/wado/*", [userAuthMidelware], reverseProxyGet);
 
 //Delete Orthanc ressource API
