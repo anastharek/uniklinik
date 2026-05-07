@@ -1,6 +1,7 @@
 var express = require("express");
 var router = express.Router();
 // Handle controller errors
+const ReverseProxy = require("../model/ReverseProxy");
 require("express-async-errors");
 
 const {
@@ -225,10 +226,9 @@ router.get("/series/:uid/thumbnail", [userAuthMidelware], async (req, res) => {
   try {
     const seriesUid = req.params.uid;
     const findResult = await ReverseProxy.getAnswer('/tools/find', 'POST', {
-      Level: 'Series',
+      Level: 'Instance',
       Query: { SeriesInstanceUID: seriesUid },
-      Limit: 1,
-      Expand: true
+      Limit: 1
     });
     if (!findResult || findResult.length === 0) {
       return res.status(404).send('No instances found');
