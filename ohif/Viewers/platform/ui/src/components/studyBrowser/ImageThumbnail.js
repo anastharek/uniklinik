@@ -51,7 +51,7 @@ function ImageThumbnail(props) {
   // Use Orthanc preview endpoint instead of cornerstone for thumbnails.
   // This prevents cornerstone cache flooding on studies with many series (e.g. angiograms).
   const shouldRenderToCanvas = () => {
-    return !effectiveImageSrc && imageId;
+    return !effectiveImageSrc && imageId && active;
   };
 
   const fetchImagePromise = () => {
@@ -93,8 +93,15 @@ function ImageThumbnail(props) {
   }, [purgeCancelablePromise]);
 
   useEffect(() => {
-    if (image.imageId) {
-      cornerstone.renderToCanvas(canvasRef.current, image);
+    if (image.imageId && canvasRef.current) {
+      const canvas = canvasRef.current;
+      if (canvas.width > 0 && canvas.height > 0) {
+        try {
+          cornerstone.renderToCanvas(canvas, image);
+        } catch (err) {
+          // Canvas not ready yet, cornerstone will retry
+        }
+      }
       setLoading(false);
     }
   }, [canvasRef, image, image.imageId]);
@@ -111,7 +118,7 @@ function ImageThumbnail(props) {
         .then(url => setPreviewSrc(url))
         .catch(() => {});
     }
-  }, [imageId, seriesInstanceUid, imageSrc, previewSrc]);
+  }, [imageId, seriesInstanceUid, active, imageSrc, previewSrc]);
 
   // Cleanup blob URL
   useEffect(() => {
