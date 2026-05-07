@@ -234,6 +234,7 @@ router.get("/series/:uid/thumbnail", [userAuthMidelware], async (req, res) => {
       return res.status(404).send('No instances found');
     }
     const instanceUuid = findResult[0];
+    res.set('Content-Type', 'image/png');
     await ReverseProxy.streamToRes(`/instances/${instanceUuid}/preview`, 'GET', undefined, res);
   } catch (err) {
     if (!res.headersSent) res.status(502).send('Preview unavailable');
