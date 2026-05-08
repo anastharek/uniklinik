@@ -1,5 +1,50 @@
-// PadiMedical: Manage blocked series descriptions in localStorage
+// PadiMedical: Manage blocked series descriptions in localStorage + global sync
 const STORAGE_KEY = 'ohif-blocked-series';
+const GLOBAL_API = '/api/preferences/global';
+
+/**
+ * Fetch global preferences from server and merge into localStorage.
+ * Called on app startup. Global prefs override local.
+ */
+async function loadGlobalPreferences() {
+  try {
+    const resp = await fetch(GLOBAL_API, { credentials: 'same-origin' });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (data.success && data.preferences && Array.isArray(data.preferences.blockedSeries)) {
+      const global = data.preferences.blockedSeries;
+      const local = getBlockedSeries();
+      // Merge: global + unique local entries
+      const merged = [...new Set([...global, ...local])];
+      saveBlockedSeries(merged);
+      console.log('Global preferences loaded:', global.length, 'blocked series');
+    }
+  } catch (e) {
+    console.warn('Failed to load global preferences:', e);
+  }
+}
+
+/**
+ * Save preferences to global server (requires admin password).
+ * Returns { success, error }.
+ */
+async function saveGlobalPreferences(password) {
+  try {
+    const resp = await fetch(GLOBAL_API, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        password,
+        preferences: { blockedSeries: getBlockedSeries() }
+      })
+    });
+    const data = await resp.json();
+    return data;
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
 
 function getBlockedSeries() {
   try {
@@ -80,4 +125,6 @@ export {
   clearBlockedSeries,
   shouldFilterSeries,
   suggestedPatterns,
+  loadGlobalPreferences,
+  saveGlobalPreferences,
 };

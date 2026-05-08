@@ -46,6 +46,9 @@ import {
 /** Extensions */
 import { GenericViewerCommands, MeasurementsPanel } from './appExtensions';
 
+/** Global preferences sync */
+import { loadGlobalPreferences } from '../../ui/src/components/studyBrowser/SeriesFilterService';
+
 /** Viewer */
 import OHIFStandaloneViewer from './OHIFStandaloneViewer';
 
@@ -158,6 +161,9 @@ class App extends Component {
     _initHotkeys(appConfigHotkeys);
     _initServers(servers);
     initWebWorkers();
+
+    // Load global preferences (series filters, etc.) from server
+    loadGlobalPreferences();
   }
 
   render() {

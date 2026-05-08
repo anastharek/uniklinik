@@ -178,3 +178,47 @@
 
   .right-buttons
     display: flex
+
+.admin-sync-section
+  padding: 0 20px 15px 20px
+  border-top: 1px solid #444
+  margin-top: 10px
+  padding-top: 15px
+
+  .admin-label
+    display: block
+    margin-bottom: 8px
+    font-weight: 600
+    font-size: 13px
+    color: #aaa
+
+  .admin-input-group
+    input.admin-password-input
+      width: 100%
+      padding: 8px 12px
+      border: 1px solid #555
+      border-radius: 4px
+      background: #333
+      color: #fff
+      font-size: 13px
+
+      &:focus
+        outline: none
+        border-color: #ffa500
+
+      &::placeholder
+        color: #777
+
+  .sync-status
+    margin-top: 8px
+    font-size: 13px
+    padding: 6px 10px
+    border-radius: 4px
+
+    &.success
+      color: #6c9
+      background: rgba(0, 255, 0, 0.08)
+
+    &.error
+      color: #f66
+      background: rgba(255, 0, 0, 0.08)

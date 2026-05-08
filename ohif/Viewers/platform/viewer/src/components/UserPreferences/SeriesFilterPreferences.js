@@ -6,6 +6,7 @@ import {
   removeBlockedSeries,
   clearBlockedSeries,
   suggestedPatterns,
+  saveGlobalPreferences,
 } from '../../../../ui/src/components/studyBrowser/SeriesFilterService';
 
 import './SeriesFilterPreferences.styl';
@@ -13,6 +14,9 @@ import './SeriesFilterPreferences.styl';
 function SeriesFilterPreferences({ onClose }) {
   const [blockedSeries, setBlocked] = useState([]);
   const [newPattern, setNewPattern] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [syncStatus, setSyncStatus] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setBlocked(getBlockedSeries());
@@ -43,6 +47,24 @@ function SeriesFilterPreferences({ onClose }) {
   const handleReset = () => {
     clearBlockedSeries();
     setBlocked([]);
+  };
+
+  const handleSave = async () => {
+    if (adminPassword.trim()) {
+      setIsSaving(true);
+      setSyncStatus('Syncing...');
+      const result = await saveGlobalPreferences(adminPassword.trim());
+      setIsSaving(false);
+      if (result.success) {
+        setSyncStatus('Saved to all devices ✓');
+        setTimeout(() => setSyncStatus(''), 3000);
+      } else {
+        setSyncStatus('Wrong password!');
+        setTimeout(() => setSyncStatus(''), 3000);
+      }
+    } else {
+      onClose();
+    }
   };
 
   return (
@@ -128,10 +150,34 @@ function SeriesFilterPreferences({ onClose }) {
           <button onClick={onClose} className="btn btn-secondary">
             Cancel
           </button>
-          <button onClick={onClose} className="btn btn-primary">
-            Save
+          <button
+            onClick={handleSave}
+            className="btn btn-primary"
+            disabled={isSaving}
+          >
+            {adminPassword.trim() ? 'Save (Sync All)' : 'Save'}
           </button>
         </div>
+      </div>
+
+      <div className="admin-sync-section">
+        <label className="admin-label">
+          🔒 Admin Password (optional — sync to all devices)
+        </label>
+        <div className="input-group admin-input-group">
+          <input
+            type="password"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            placeholder="Enter admin password to sync globally"
+            className="form-control admin-password-input"
+          />
+        </div>
+        {syncStatus && (
+          <div className={`sync-status ${syncStatus.includes('✓') ? 'success' : syncStatus.includes('Wrong') ? 'error' : ''}`}>
+            {syncStatus}
+          </div>
+        )}
       </div>
     </React.Fragment>
   );

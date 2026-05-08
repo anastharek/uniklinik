@@ -118,6 +118,9 @@ const AiAutorouter=require('../controllers/AiAutorouter');
 const ReportTemplate=require('../controllers/ReportTemplate');
 const PatientController=require('../controllers/patientController');
 const PadilabelController=require('../controllers/PadilabelController');
+const { getGlobalPreferences, saveGlobalPreferences } = require('../controllers/preferences');
+router.get("/preferences/global", userAuthMidelware, getGlobalPreferences);
+router.post("/preferences/global", userAuthMidelware, saveGlobalPreferences);
 router.get("/modalities", userAuthMidelware, reverseProxyGet);
 router.post(
   "/modalities/*/store",
