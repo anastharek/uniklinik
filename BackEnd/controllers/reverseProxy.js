@@ -2,7 +2,12 @@ const ReverseProxy = require("../model/ReverseProxy");
 
 const reverseProxyGet = async function (req, res) {
   const apiAdress = req.originalUrl;
-  const orthancCalledApi = apiAdress.replace("/api", "");
+  let orthancCalledApi = apiAdress.replace("/api", "");
+  // Orthanc WADO returns JPEG thumbnail by default; force full DICOM
+  if (orthancCalledApi.startsWith('/wado')) {
+    const sep = orthancCalledApi.includes('?') ? '&' : '?';
+    orthancCalledApi += sep + 'contentType=application/dicom';
+  }
   await ReverseProxy.streamToRes(orthancCalledApi, "GET", undefined, res);
 };
 const reverseProxyGetStudy = async function (ID) {
