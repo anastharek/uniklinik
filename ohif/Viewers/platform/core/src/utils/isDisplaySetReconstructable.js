@@ -280,6 +280,6 @@ function _getPerpendicularDistance(a, b) {
   );
 }
 
-const constructableModalities = ['MR', 'CT', 'PT', 'NM'];
+const constructableModalities = ['MR', 'CT', 'PT', 'NM', 'XA'];
 
 export { isDisplaySetReconstructable, isSpacingUniform };
