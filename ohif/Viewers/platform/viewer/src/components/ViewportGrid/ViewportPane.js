@@ -5,7 +5,7 @@ import classNames from 'classnames';
 import './ViewportPane.css';
 
 const ViewportPane = function (props) {
-  const { children, onDrop, viewportIndex, className: propClassName, onClick } = props;
+  const { children, onDrop, viewportIndex, className: propClassName, onClick, isActive } = props;
   const [{ hovered, highlighted }, drop] = useDrop({
     accept: 'thumbnail',
     drop: (droppedItem, monitor) => {
@@ -36,8 +36,17 @@ const ViewportPane = function (props) {
       )}
       ref={drop}
       data-cy={`viewport-container-${viewportIndex}`}
-      onClick={onClick ? () => onClick(viewportIndex) : undefined}
     >
+      {/* Clickable overlay to activate viewport — only on inactive panes */}
+      {onClick && !isActive && (
+        <div
+          className="viewport-activate-overlay"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick(viewportIndex);
+          }}
+        />
+      )}
       {children}
     </div>
   );
@@ -48,6 +57,7 @@ ViewportPane.propTypes = {
   viewportIndex: PropTypes.number.isRequired,
   onDrop: PropTypes.func.isRequired,
   onClick: PropTypes.func,
+  isActive: PropTypes.bool,
   className: PropTypes.string,
 };
 
