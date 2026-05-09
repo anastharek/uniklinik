@@ -164,6 +164,9 @@ class App extends Component {
 
     // Load global preferences (series filters, etc.) from server
     loadGlobalPreferences();
+
+    // Global error boundary — prevents white screen crashes from uncaught errors
+    _initGlobalErrorHandler(servicesManager);
   }
 
   render() {
@@ -353,6 +356,68 @@ function _makeAbsoluteIfNecessary(url, base_url) {
   }
 
   return base_url + url;
+}
+
+/**
+ * Global error handler — catches uncaught errors and unhandled rejections
+ * to prevent white-screen crashes on mobile.
+ */
+function _initGlobalErrorHandler(servicesManager) {
+  const ErrorModalContent = ({ message, reload }) => {
+    return React.createElement('div', { className: 'global-error-modal' }, [
+      React.createElement('p', { key: 'msg' }, message || 'An unexpected error occurred. The viewer has been recovered.'),
+      React.createElement('button', {
+        key: 'btn',
+        className: 'btn btn-primary',
+        onClick: reload,
+      }, 'Reload Viewer'),
+    ]);
+  };
+
+  window.addEventListener('error', (event) => {
+    // Only handle runtime errors, not resource load errors
+    if (!event.error && !event.message) return;
+
+    try {
+      const { UIModalService } = servicesManager.services;
+      if (UIModalService) {
+        UIModalService.show({
+          title: 'Application Error',
+          content: ErrorModalContent,
+          contentProps: {
+            message: event.message || (event.error && event.error.message) || 'Unknown error',
+            reload: () => window.location.reload(),
+          },
+        });
+      }
+    } catch (e) {
+      // If even the modal fails, fallback to alert
+      console.error('Global error handler failed:', e);
+    }
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    event.preventDefault();
+
+    try {
+      const { UIModalService } = servicesManager.services;
+      if (UIModalService) {
+        const reason = event.reason;
+        const message = (reason && reason.message) || String(reason) || 'Unhandled promise rejection';
+
+        UIModalService.show({
+          title: 'Application Error',
+          content: ErrorModalContent,
+          contentProps: {
+            message,
+            reload: () => window.location.reload(),
+          },
+        });
+      }
+    } catch (e) {
+      console.error('Global rejection handler failed:', e);
+    }
+  });
 }
 
 /*

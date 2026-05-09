@@ -85,4 +85,17 @@ ViewportPane.propTypes = {
   className: PropTypes.string,
 };
 
-export default ViewportPane;
+/**
+ * Custom memo comparator — only re-render if layout-critical props change.
+ * Skips re-renders triggered by unrelated Redux state changes.
+ */
+function viewportPanePropsEqual(prevProps, nextProps) {
+  return (
+    prevProps.viewportIndex === nextProps.viewportIndex &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.className === nextProps.className &&
+    prevProps.onDrop === nextProps.onDrop
+  );
+}
+
+export default React.memo(ViewportPane, viewportPanePropsEqual);

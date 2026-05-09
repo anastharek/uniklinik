@@ -17,6 +17,11 @@ import srModuleId from './tools/id';
 export default function init({ servicesManager, configuration }) {
   const { UIDialogService, MeasurementService } = servicesManager.services;
 
+  // Set image cache limit to 150MB — prevents out-of-memory crashes on mobile
+  // when loading large studies (e.g. Prop Scan 384 instances).
+  // Mobile Safari tabs have ~256-512MB available; leaving headroom for DOM.
+  cornerstone.imageCache.setMaximumSizeBytes(150 * 1024 * 1024);
+
   csTools.register('module', srModuleId, dicomSRModule);
 
   const callInputDialog = (data, event, callback) => {

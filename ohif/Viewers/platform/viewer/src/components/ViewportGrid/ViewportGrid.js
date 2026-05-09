@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import { utils } from '@ohif/core';
-import { useSnackbarContext, useLogger } from '@ohif/ui';
+import { useSnackbarContext, useLogger, ErrorBoundary } from '@ohif/ui';
 //
 import ViewportPane from './ViewportPane.js';
 import DefaultViewport from './DefaultViewport.js';
@@ -95,7 +95,9 @@ const ViewportGrid = function(props) {
           })}
           key={viewportIndex}
         >
-          {ViewportComponent}
+          <ErrorBoundary context={`ViewportPane ${viewportIndex}`}>
+            {ViewportComponent}
+          </ErrorBoundary>
         </ViewportPane>
       );
     });
