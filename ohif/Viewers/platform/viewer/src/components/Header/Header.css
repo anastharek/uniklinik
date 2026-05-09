@@ -153,11 +153,12 @@
   }
 
   .header-brand {
-    height: auto;
+    height: 22px;
+    width: auto;
   }
 
   .header-logo-image {
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
   }
 }
