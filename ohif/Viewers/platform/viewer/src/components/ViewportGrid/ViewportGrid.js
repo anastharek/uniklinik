@@ -25,7 +25,6 @@ const ViewportGrid = function(props) {
     viewportData,
     children,
     isStudyLoaded,
-    onViewportClick,
   } = props;
 
   const rowSize = 100 / numRows;
@@ -89,8 +88,7 @@ const ViewportGrid = function(props) {
       return (
         <ViewportPane
           onDrop={setViewportData}
-          viewportIndex={viewportIndex} // Needed by `setViewportData`
-          onClick={onViewportClick}
+          viewportIndex={viewportIndex}
           isActive={activeViewportIndex === viewportIndex}
           className={classNames('viewport-container', {
             active: activeViewportIndex === viewportIndex,
