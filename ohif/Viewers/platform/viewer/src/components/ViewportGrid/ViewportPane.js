@@ -5,7 +5,7 @@ import classNames from 'classnames';
 import './ViewportPane.css';
 
 const ViewportPane = function (props) {
-  const { children, onDrop, viewportIndex, className: propClassName } = props;
+  const { children, onDrop, viewportIndex, className: propClassName, onClick } = props;
   const [{ hovered, highlighted }, drop] = useDrop({
     accept: 'thumbnail',
     drop: (droppedItem, monitor) => {
@@ -36,6 +36,7 @@ const ViewportPane = function (props) {
       )}
       ref={drop}
       data-cy={`viewport-container-${viewportIndex}`}
+      onClick={onClick ? () => onClick(viewportIndex) : undefined}
     >
       {children}
     </div>
@@ -46,6 +47,7 @@ ViewportPane.propTypes = {
   children: PropTypes.node.isRequired,
   viewportIndex: PropTypes.number.isRequired,
   onDrop: PropTypes.func.isRequired,
+  onClick: PropTypes.func,
   className: PropTypes.string,
 };
 

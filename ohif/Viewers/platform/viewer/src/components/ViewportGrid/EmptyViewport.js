@@ -6,7 +6,7 @@
 function EmptyViewport() {
   return (
     <div className="empty-viewport">
-      <p>Please drag a stack here to view images.</p>
+      <p>Tap a series below to load images here.</p>
     </div>
   );
 }
