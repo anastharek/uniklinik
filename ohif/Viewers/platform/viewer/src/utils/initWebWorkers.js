@@ -2,8 +2,12 @@ import cornerstoneWADOImageLoader from 'cornerstone-wado-image-loader';
 
 let initialized = false;
 
-const MAX_WEB_WORKERS = 6;
-const MAX_SIMULTANEOUS_REQUESTS = 8;
+const isMobile = /iPhone|iPad|iPod|Android/i.test(
+  typeof navigator !== 'undefined' ? navigator.userAgent : ''
+);
+
+const MAX_WEB_WORKERS = isMobile ? 2 : 6;
+const MAX_SIMULTANEOUS_REQUESTS = isMobile ? 4 : 8;
 
 export default function initWebWorkers() {
   const config = {

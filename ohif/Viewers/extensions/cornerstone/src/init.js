@@ -17,10 +17,17 @@ import srModuleId from './tools/id';
 export default function init({ servicesManager, configuration }) {
   const { UIDialogService, MeasurementService } = servicesManager.services;
 
-  // Set image cache limit to 150MB — prevents out-of-memory crashes on mobile
-  // when loading large studies (e.g. Prop Scan 384 instances).
-  // Mobile Safari tabs have ~256-512MB available; leaving headroom for DOM.
-  cornerstone.imageCache.setMaximumSizeBytes(150 * 1024 * 1024);
+  // Detect mobile for cache limit — Safari tabs have ~256-512MB, desktop 1GB+
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(
+    typeof navigator !== 'undefined' ? navigator.userAgent : ''
+  );
+
+  // Set image cache limit to prevent out-of-memory crashes:
+  // Desktop: 150MB (generous, plenty of headroom)
+  // Mobile: 80MB (conservative, leaves room for DOM, JS heap, decode buffers)
+  cornerstone.imageCache.setMaximumSizeBytes(
+    isMobile ? 80 * 1024 * 1024 : 150 * 1024 * 1024
+  );
 
   csTools.register('module', srModuleId, dicomSRModule);
 
