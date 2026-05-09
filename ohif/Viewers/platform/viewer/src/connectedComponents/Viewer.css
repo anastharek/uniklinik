@@ -1,25 +1,9 @@
 #viewer {
   background-color: #0a0a0a;
   width: 100%;
-  min-height: 100%;
 }
 
 .loadingTextDiv {
-  color: #8ea4b8;
-  font-size: 26px;
-  letter-spacing: 0.04em;
-}
-
-/* ── MPR viewport grid border between panes ── */
-#viewer [data-cy="viewprt-grid"] {
-  gap: 1px;
-  background: #2a3f54;
-}
-
-/* Mobile: tighter border gap */
-@media (max-width: 768px) {
-  #viewer [data-cy="viewprt-grid"] {
-    gap: 1px;
-    background: #0a0a0a;
-  }
+  color: var(--text-secondary-color);
+  font-size: 30px;
 }
