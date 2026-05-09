@@ -374,9 +374,27 @@ function _initGlobalErrorHandler(servicesManager) {
     ]);
   };
 
+  /**
+   * Extract a human-readable message from any error type.
+   * Avoids [object Object] when the thrown value isn't a proper Error.
+   */
+  function _safeErrorMessage(error) {
+    if (!error) return 'Unknown error';
+    if (typeof error === 'string') return error;
+    if (error.message && typeof error.message === 'string') return error.message;
+    try {
+      return JSON.stringify(error).substring(0, 200);
+    } catch (e) {
+      return String(error).substring(0, 200);
+    }
+  }
+
   window.addEventListener('error', (event) => {
     // Only handle runtime errors, not resource load errors
     if (!event.error && !event.message) return;
+
+    // Log full error for debugging
+    console.error('[OHIF] Global error caught:', event.error || event.message);
 
     try {
       const { UIModalService } = servicesManager.services;
@@ -385,13 +403,12 @@ function _initGlobalErrorHandler(servicesManager) {
           title: 'Application Error',
           content: ErrorModalContent,
           contentProps: {
-            message: event.message || (event.error && event.error.message) || 'Unknown error',
+            message: _safeErrorMessage(event.error) || event.message || 'Unknown error',
             reload: () => window.location.reload(),
           },
         });
       }
     } catch (e) {
-      // If even the modal fails, fallback to alert
       console.error('Global error handler failed:', e);
     }
   });
@@ -399,17 +416,17 @@ function _initGlobalErrorHandler(servicesManager) {
   window.addEventListener('unhandledrejection', (event) => {
     event.preventDefault();
 
+    // Log full rejection reason for debugging
+    console.error('[OHIF] Unhandled rejection caught:', event.reason);
+
     try {
       const { UIModalService } = servicesManager.services;
       if (UIModalService) {
-        const reason = event.reason;
-        const message = (reason && reason.message) || String(reason) || 'Unhandled promise rejection';
-
         UIModalService.show({
           title: 'Application Error',
           content: ErrorModalContent,
           contentProps: {
-            message,
+            message: _safeErrorMessage(event.reason),
             reload: () => window.location.reload(),
           },
         });
