@@ -6,8 +6,8 @@ const isMobile = /iPhone|iPad|iPod|Android/i.test(
   typeof navigator !== 'undefined' ? navigator.userAgent : ''
 );
 
-const MAX_WEB_WORKERS = isMobile ? 2 : 6;
-const MAX_SIMULTANEOUS_REQUESTS = isMobile ? 4 : 8;
+const MAX_WEB_WORKERS = isMobile ? 1 : 6;
+const MAX_SIMULTANEOUS_REQUESTS = isMobile ? 2 : 8;
 
 export default function initWebWorkers() {
   const config = {

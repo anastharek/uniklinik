@@ -23,10 +23,10 @@ export default function init({ servicesManager, configuration }) {
   );
 
   // Set image cache limit to prevent out-of-memory crashes:
-  // Desktop: 150MB (generous, plenty of headroom)
-  // Mobile: 80MB (conservative, leaves room for DOM, JS heap, decode buffers)
+  // Desktop: 150MB (generous headroom)
+  // Mobile: 50MB (conservative — 1618×1618 frames are 10MB each decoded)
   cornerstone.imageCache.setMaximumSizeBytes(
-    isMobile ? 80 * 1024 * 1024 : 150 * 1024 * 1024
+    isMobile ? 50 * 1024 * 1024 : 150 * 1024 * 1024
   );
 
   csTools.register('module', srModuleId, dicomSRModule);
