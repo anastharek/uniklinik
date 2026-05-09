@@ -32,9 +32,8 @@ export default function(configuration = {}) {
   cornerstoneTools.toolStyle.setToolWidth(2);
   // Semi-transparent crosshair colors — visible but unobtrusive over anatomy
   // Yellow: default crosshair lines in non-active viewports
-  cornerstoneTools.toolColors.setToolColor('rgba(255, 255, 0, 0.40)');
-  // Cyan/teal: active viewport crosshair lines (enterprise accent)
-  cornerstoneTools.toolColors.setActiveColor('rgba(34, 211, 238, 0.55)');
+  cornerstoneTools.toolColors.setToolColor('rgb(255, 255, 0)');
+  cornerstoneTools.toolColors.setActiveColor('rgb(0, 255, 255)');
 
   cornerstoneTools.store.state.touchProximity = 40;
 
