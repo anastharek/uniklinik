@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { useDrop } from 'react-dnd';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
@@ -6,6 +6,8 @@ import './ViewportPane.css';
 
 const ViewportPane = function (props) {
   const { children, onDrop, viewportIndex, className: propClassName, isActive } = props;
+  const paneRef = useRef(null);
+
   const [{ hovered, highlighted }, drop] = useDrop({
     accept: 'thumbnail',
     drop: (droppedItem, monitor) => {
@@ -26,14 +28,38 @@ const ViewportPane = function (props) {
     }),
   });
 
-  const handleClick = () => {
-    if (!isActive && typeof window !== 'undefined' && window.store) {
-      window.store.dispatch({
-        type: 'SET_VIEWPORT_ACTIVE',
-        viewportIndex,
-      });
-    }
-  };
+  // Combine react-dnd drop ref with our own ref
+  const setRefs = useCallback((node) => {
+    paneRef.current = node;
+    drop(node);
+  }, [drop]);
+
+  // Attach native click/touch listener directly to DOM to bypass cornerstone interception
+  useEffect(() => {
+    const el = paneRef.current;
+    if (!el) return;
+
+    const activateViewport = (e) => {
+      // Don't activate if already active (avoids re-triggering)
+      if (isActive) return;
+
+      if (window.store) {
+        window.store.dispatch({
+          type: 'SET_VIEWPORT_ACTIVE',
+          viewportIndex,
+        });
+      }
+    };
+
+    // Use capture phase to intercept before cornerstone tools
+    el.addEventListener('click', activateViewport, true);
+    el.addEventListener('touchend', activateViewport, true);
+
+    return () => {
+      el.removeEventListener('click', activateViewport, true);
+      el.removeEventListener('touchend', activateViewport, true);
+    };
+  }, [isActive, viewportIndex]);
 
   return (
     <div
@@ -43,9 +69,8 @@ const ViewportPane = function (props) {
         { highlighted: highlighted },
         propClassName
       )}
-      ref={drop}
+      ref={setRefs}
       data-cy={`viewport-container-${viewportIndex}`}
-      onClick={handleClick}
     >
       {children}
     </div>
