@@ -22,6 +22,13 @@ const MEASUREMENT_ACTION_MAP = {
   }, 300),
 };
 
+// Mobile Safari has strict WebGL context limits (typically 4-8).
+// Cornerstone defaults to WebGL, which crashes when 3+ viewports are
+// enabled simultaneously (e.g. 2D MPR). Force Canvas 2D on mobile.
+const isMobile = /iPhone|iPad|iPod|Android/i.test(
+  typeof navigator !== 'undefined' ? navigator.userAgent : ''
+);
+
 const mapStateToProps = (state, ownProps) => {
   let dataFromStore;
 
@@ -61,6 +68,7 @@ const mapStateToProps = (state, ownProps) => {
       : isActive,
     isPlaying,
     frameRate,
+    cornerstoneOptions: isMobile ? { renderer: 'canvas' } : {},
     //stack: viewportSpecificData.stack,
     // viewport: viewportSpecificData.viewport,
   };
