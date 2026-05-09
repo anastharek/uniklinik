@@ -47,22 +47,10 @@
   text-align: center;
 }
 
-/* Top-right: offset for orientation indicator dot */
 .OHIFCornerstoneViewportOverlay .top-right {
-  top: 24px;
+  top: 16px;
   right: 16px;
   text-align: right;
-}
-
-/* ── Orientation indicator dots ── */
-.OHIFCornerstoneViewportOverlay .orientation-indicator {
-  transition: opacity 0.2s ease;
-  animation: orientation-pulse 2s ease-in-out infinite;
-}
-
-@keyframes orientation-pulse {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 0.5; }
 }
 
 .OHIFCornerstoneViewportOverlay .bottom-left {

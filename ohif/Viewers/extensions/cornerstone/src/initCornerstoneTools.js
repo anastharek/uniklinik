@@ -28,12 +28,10 @@ export default function(configuration = {}) {
     'Roboto, OpenSans, HelveticaNeue-Light, Helvetica Neue Light, Helvetica Neue, Helvetica, Arial, Lucida Grande, sans-serif';
   cornerstoneTools.textStyle.setFont(`16px ${fontFamily}`);
 
-  // Tool styles/colors — Enterprise PACS MPR crosshair system
+  // Tool styles/colors
   cornerstoneTools.toolStyle.setToolWidth(2);
-  // Semi-transparent crosshair colors — visible but unobtrusive over anatomy
-  // Yellow: default crosshair lines in non-active viewports
   cornerstoneTools.toolColors.setToolColor('rgb(255, 255, 0)');
-  cornerstoneTools.toolColors.setActiveColor('rgb(0, 255, 255)');
+  cornerstoneTools.toolColors.setActiveColor('rgb(0, 255, 0)');
 
   cornerstoneTools.store.state.touchProximity = 40;
 
