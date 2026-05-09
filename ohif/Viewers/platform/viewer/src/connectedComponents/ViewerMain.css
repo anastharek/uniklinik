@@ -22,3 +22,15 @@
   width: 100%;
   height: 100%;
 }
+
+/* ── Mobile MPR: ensure viewer fills screen ── */
+@media (max-width: 768px) {
+  .ViewerMain {
+    flex-direction: column;
+  }
+  
+  .ViewerMain > div {
+    min-height: 33vh;
+    max-height: 100%;
+  }
+}

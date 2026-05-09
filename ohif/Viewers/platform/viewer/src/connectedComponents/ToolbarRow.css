@@ -10,9 +10,132 @@
     width: 100%;
     display: flex;
     align-items: center;
+    /* Enterprise PACS: horizontal scroll on mobile */
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #2a2a2a #1a1a1a;
+    /* Hide scrollbar for cleanliness */
+    -ms-overflow-style: none;
 }
 
-ToolbarRow.expanded {
+/* Chrome/Safari — clean scrollbar appearance */
+.ToolbarRow::-webkit-scrollbar {
+    height: 3px;
+}
+
+.ToolbarRow::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+.ToolbarRow::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 3px;
+}
+
+.ToolbarRow::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
+}
+
+.ToolbarRow.expanded {
     height: calc(var(--toolbar-height) + var(--toolbar-drawer-height));
 }
 
+/* ── Slab Thickness Slider (MPR control) ── */
+.ToolbarRow input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: #2a2a2a;
+    outline: none;
+    margin: 0 8px;
+    vertical-align: middle;
+    min-width: 80px;
+}
+
+/* Cyan slider track fill (Chrome) */
+.ToolbarRow input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right, #22d3ee 0%, #22d3ee var(--slab-fill, 50%), #2a2a2a var(--slab-fill, 50%));
+}
+
+/* Large touch-friendly thumb */
+.ToolbarRow input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #22d3ee;
+    border: 2px solid #0a0a0a;
+    box-shadow: 0 0 6px rgba(34, 211, 238, 0.5);
+    margin-top: -6px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.ToolbarRow input[type="range"]::-webkit-slider-thumb:active {
+    transform: scale(1.25);
+    box-shadow: 0 0 12px rgba(34, 211, 238, 0.7);
+}
+
+/* Firefox */
+.ToolbarRow input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: #2a2a2a;
+}
+
+.ToolbarRow input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #22d3ee;
+    border: 2px solid #0a0a0a;
+    box-shadow: 0 0 6px rgba(34, 211, 238, 0.5);
+    cursor: pointer;
+}
+
+/* ── Slab thickness separator (left border) ── */
+.ToolbarRow .slab-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 12px;
+    margin-left: 8px;
+    border-left: 1px solid #2a3f54;
+    flex-shrink: 0;
+}
+
+.ToolbarRow .slab-control label {
+    color: #8ea4b8;
+    font-size: 9px;
+    font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.ToolbarRow .slab-control .slab-value {
+    color: #22d3ee;
+    font-size: 10px;
+    font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+    min-width: 44px;
+    text-align: right;
+}
+
+/* ── Touch helpers for toolbar buttons ── */
+.ToolbarRow > .pull-left,
+.ToolbarRow > .pull-right {
+    flex-shrink: 0;
+}
+
+/* ── Active tool highlight for MPR tools ── */
+.ToolbarRow .toolbar-button.active {
+    background: #1e293b;
+    box-shadow: inset 0 2px 0 #22d3ee;
+}

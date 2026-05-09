@@ -209,8 +209,47 @@ class OHIFCornerstoneViewportOverlay extends PureComponent {
       );
     };
 
+    // ── Orientation indicator: detect image plane from direction cosines ──
+    const getPlaneOrientation = () => {
+      const { rowCosines, columnCosines } = imagePlaneModule;
+      if (!rowCosines || !columnCosines) return null;
+      // Compute normal vector = row × column (cross product)
+      const nx = rowCosines[1] * columnCosines[2] - rowCosines[2] * columnCosines[1];
+      const ny = rowCosines[2] * columnCosines[0] - rowCosines[0] * columnCosines[2];
+      const nz = rowCosines[0] * columnCosines[1] - rowCosines[1] * columnCosines[0];
+      const absNx = Math.abs(nx);
+      const absNy = Math.abs(ny);
+      const absNz = Math.abs(nz);
+      // Axial: normal ≈ Z axis, minus Z axis, or close to Z
+      if (absNz >= absNx && absNz >= absNy) return { label: 'A', color: '#ef4444' };
+      // Sagittal: normal ≈ X axis
+      if (absNx >= absNy && absNx >= absNz) return { label: 'S', color: '#22c55e' };
+      // Coronal: normal ≈ Y axis
+      return { label: 'C', color: '#eab308' };
+    };
+    const orientation = getPlaneOrientation();
+    const orientationDot = orientation ? (
+      <div
+        className="orientation-indicator"
+        style={{
+          position: 'absolute',
+          top: '12px',
+          right: '12px',
+          width: '10px',
+          height: '10px',
+          borderRadius: '50%',
+          backgroundColor: orientation.color,
+          boxShadow: `0 0 6px ${orientation.color}80`,
+          zIndex: 10,
+          pointerEvents: 'none',
+        }}
+        title={`${orientation.label} plane`}
+      />
+    ) : null;
+
     const normal = (
       <React.Fragment>
+        {orientationDot}
         <div className="top-left overlay-element">
           <div>{formatPN(patientName)}</div>
           <div>{patientId}</div>
