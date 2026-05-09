@@ -10,9 +10,9 @@
     width: 100%;
     display: flex;
     align-items: center;
-    /* Enterprise PACS: horizontal scroll on mobile */
+    /* Enterprise PACS: horizontal scroll on mobile, keep vertical visible for dropdowns */
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     white-space: nowrap;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
@@ -138,4 +138,29 @@
 .ToolbarRow .toolbar-button.active {
     background: #1e293b;
     box-shadow: inset 0 2px 0 #22d3ee;
+}
+
+/* ── Layout chooser dropdown dark theme (prevent white flash + clipping) ── */
+.ToolbarRow .layoutChooser-dropdown-menu {
+    background-color: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+.ToolbarRow .layoutChooser {
+    background: #121212;
+    border-color: #2a2a2a;
+}
+
+.ToolbarRow .layoutChooser td {
+    border-color: #2a2a2a !important;
+}
+
+.ToolbarRow .layoutChooser td.hover,
+.ToolbarRow .layoutChooser td:hover {
+    background-color: #1e293b;
+}
+
+.ToolbarRow .layoutChooser .selectedBefore {
+    background-color: #0f2744;
 }
