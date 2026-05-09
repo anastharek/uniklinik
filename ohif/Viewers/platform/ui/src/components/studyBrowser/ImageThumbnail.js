@@ -145,7 +145,7 @@ function ImageThumbnail(props) {
     <div className={classNames('ImageThumbnail', { active: active })}>
       <div className="image-thumbnail-canvas">
         {shouldRenderToCanvas() ? (
-          <canvas ref={canvasRef} width={width} height={height} />
+          <canvas ref={canvasRef} width={width} height={height} style={{ touchAction: 'pan-y' }} />
         ) : (
           <img
             className="static-image"

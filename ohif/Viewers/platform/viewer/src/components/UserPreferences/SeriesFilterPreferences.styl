@@ -1,13 +1,14 @@
 .SeriesFilterPreferences
   padding: 20px
-  color: #fff
+  color: #8ea4b8
+  font-size: 11px
 
   .filter-description
     margin-bottom: 20px
     p
-      font-size: 14px
+      font-size: 12px
       line-height: 1.5
-      color: #ccc
+      color: #8ea4b8
 
   .add-pattern-section
     margin-bottom: 20px
@@ -16,43 +17,53 @@
       display: block
       margin-bottom: 8px
       font-weight: 600
-      font-size: 14px
+      font-size: 11px
+      letter-spacing: 0.03em
+      text-transform: uppercase
+      color: #cbd5e1
 
     .input-group
       display: flex
-      gap: 10px
+      gap: 8px
 
       input
         flex: 1
         padding: 8px 12px
-        border: 1px solid #555
-        border-radius: 4px
-        background: #333
-        color: #fff
-        font-size: 14px
+        border: 1px solid #2a2a2a
+        border-radius: 6px
+        background: #1a1a1a
+        color: #cbd5e1
+        font-size: 12px
+        font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace
 
         &:focus
           outline: none
-          border-color: #00a4d6
+          border-color: #22d3ee
 
         &::placeholder
-          color: #888
+          color: #64748b
 
       .add-btn
         padding: 8px 16px
-        background: #00a4d6
-        color: #fff
-        border: none
-        border-radius: 4px
+        background: #1e293b
+        color: #22d3ee
+        border: 1px solid rgba(34, 211, 238, 0.25)
+        border-radius: 6px
         cursor: pointer
-        font-size: 14px
+        font-size: 11px
+        font-weight: 500
+        letter-spacing: 0.03em
+        transition: all 0.15s ease
 
         &:disabled
-          background: #555
+          background: #1a1a1a
+          border-color: #2a2a2a
+          color: #64748b
           cursor: not-allowed
 
         &:hover:not(:disabled)
-          background: #0088b3
+          background: #1e3a5f
+          border-color: #22d3ee
 
   .suggested-patterns
     margin-bottom: 20px
@@ -61,31 +72,36 @@
       display: block
       margin-bottom: 10px
       font-weight: 600
-      font-size: 14px
+      font-size: 11px
+      letter-spacing: 0.03em
+      text-transform: uppercase
+      color: #cbd5e1
 
     .suggested-list
       display: flex
       flex-wrap: wrap
-      gap: 8px
+      gap: 6px
 
       .suggested-btn
-        padding: 6px 12px
-        background: #444
-        color: #ccc
-        border: 1px solid #555
-        border-radius: 4px
+        padding: 5px 10px
+        background: #1a1a1a
+        color: #8ea4b8
+        border: 1px solid #2a2a2a
+        border-radius: 6px
         cursor: pointer
-        font-size: 13px
-        transition: all 0.2s
+        font-size: 11px
+        font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace
+        transition: all 0.15s ease
 
         &:hover:not(:disabled)
-          background: #555
-          color: #fff
+          background: #252525
+          color: #cbd5e1
+          border-color: #3a5a6a
 
         &:disabled
-          background: #2a4a3a
-          color: #6c9
-          border-color: #4a7
+          background: rgba(34, 211, 238, 0.08)
+          color: #22d3ee
+          border-color: rgba(34, 211, 238, 0.2)
           cursor: default
 
   .blocked-list-section
@@ -93,12 +109,16 @@
       display: block
       margin-bottom: 10px
       font-weight: 600
-      font-size: 14px
+      font-size: 11px
+      letter-spacing: 0.03em
+      text-transform: uppercase
+      color: #cbd5e1
 
     .no-blocked
-      color: #888
+      color: #64748b
       font-style: italic
       padding: 10px 0
+      font-size: 11px
 
     .blocked-list
       list-style: none
@@ -111,77 +131,85 @@
         display: flex
         justify-content: space-between
         align-items: center
-        padding: 10px 12px
-        background: #3a3a3a
-        border: 1px solid #444
-        border-radius: 4px
-        margin-bottom: 8px
+        padding: 8px 12px
+        background: #1a1a1a
+        border: 1px solid #2a2a2a
+        border-radius: 6px
+        margin-bottom: 6px
 
         .pattern-text
-          font-family: monospace
-          font-size: 14px
-          color: #ff9999
+          font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace
+          font-size: 12px
+          color: #f87171
 
         .remove-btn
-          width: 24px
-          height: 24px
-          background: #c44
-          color: #fff
-          border: none
+          width: 22px
+          height: 22px
+          background: #7f1d1d
+          color: #fca5a5
+          border: 1px solid #991b1b
           border-radius: 4px
           cursor: pointer
-          font-size: 18px
+          font-size: 14px
           line-height: 1
           display: flex
           align-items: center
           justify-content: center
+          transition: all 0.15s ease
 
           &:hover
-            background: #d55
+            background: #991b1b
+            color: #fecaca
 
 .TabFooter
   display: flex
   justify-content: space-between
   align-items: center
   padding: 15px 20px
-  border-top: 1px solid #444
+  border-top: 1px solid #2a2a2a
   margin-top: 20px
 
   .btn
     padding: 8px 16px
     border: none
-    border-radius: 4px
+    border-radius: 6px
     cursor: pointer
-    font-size: 14px
+    font-size: 11px
+    font-weight: 500
+    letter-spacing: 0.03em
+    transition: all 0.15s ease
 
     &.btn-danger
-      background: #c44
-      color: #fff
+      background: #7f1d1d
+      color: #fca5a5
 
       &:hover
-        background: #d55
+        background: #991b1b
 
     &.btn-secondary
-      background: #555
-      color: #fff
-      margin-right: 10px
+      background: #1a1a1a
+      color: #8ea4b8
+      border: 1px solid #2a2a2a
+      margin-right: 8px
 
       &:hover
-        background: #666
+        background: #252525
+        color: #cbd5e1
 
     &.btn-primary
-      background: #00a4d6
-      color: #fff
+      background: #1e293b
+      color: #22d3ee
+      border: 1px solid rgba(34, 211, 238, 0.25)
 
       &:hover
-        background: #0088b3
+        background: #1e3a5f
 
   .right-buttons
     display: flex
 
 .admin-sync-section
   padding: 0 20px 15px 20px
-  border-top: 1px solid #444
+  border-top: 1px solid #2a2a2a
   margin-top: 10px
   padding-top: 15px
 
@@ -189,36 +217,38 @@
     display: block
     margin-bottom: 8px
     font-weight: 600
-    font-size: 13px
-    color: #aaa
+    font-size: 10px
+    text-transform: uppercase
+    letter-spacing: 0.05em
+    color: #64748b
 
   .admin-input-group
     input.admin-password-input
       width: 100%
       padding: 8px 12px
-      border: 1px solid #555
-      border-radius: 4px
-      background: #333
-      color: #fff
-      font-size: 13px
+      border: 1px solid #2a2a2a
+      border-radius: 6px
+      background: #1a1a1a
+      color: #cbd5e1
+      font-size: 12px
 
       &:focus
         outline: none
-        border-color: #ffa500
+        border-color: #e29e4a
 
       &::placeholder
-        color: #777
+        color: #64748b
 
   .sync-status
     margin-top: 8px
-    font-size: 13px
+    font-size: 11px
     padding: 6px 10px
     border-radius: 4px
 
     &.success
-      color: #6c9
-      background: rgba(0, 255, 0, 0.08)
+      color: #34d399
+      background: rgba(52, 211, 153, 0.08)
 
     &.error
-      color: #f66
-      background: rgba(255, 0, 0, 0.08)
+      color: #f87171
+      background: rgba(248, 113, 113, 0.08)

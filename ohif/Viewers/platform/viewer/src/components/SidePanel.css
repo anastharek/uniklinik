@@ -6,6 +6,7 @@
   height: calc(100% - var(--toolbar-height) - var(--top-bar-height));
   width: 100%;
   overflow: hidden;
+  background: #0a0a0a;
 }
 
 .sidepanel {
@@ -13,16 +14,17 @@
   height: 100%;
   transition: var(--sidepanel-transition);
   overflow-y: auto;
+  background: #121212;
 }
 
 .from-left {
-  border-right: var(--ui-border-thickness) solid var(--ui-border-color);
+  border-right: 1px solid #2a2a2a;
   margin-left: calc(var(--left-sidepanel-menu-width) * -1);
   max-width: var(--left-sidepanel-menu-width);
 }
 
 .from-right {
-  border-left: var(--ui-border-thickness) solid var(--ui-border-color);
+  border-left: 1px solid #2a2a2a;
   margin-right: calc(var(--right-sidepanel-menu-width) * -1);
   max-width: var(--right-sidepanel-menu-width);
 }
@@ -38,11 +40,11 @@
   overflow: hidden;
   transition: var(--sidepanel-transition);
   width: 100%;
+  background: #0a0a0a;
 }
 
 @media only screen and (max-width: 768px) {
-  /* Account for "Investigational Use" banner height */
   .FlexboxLayout {
-    height: calc(100% - var(--toolbar-height) - var(--top-bar-height) - 16px);
+    height: calc(100% - var(--toolbar-height) - var(--top-bar-height));
   }
 }

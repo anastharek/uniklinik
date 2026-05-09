@@ -71,16 +71,17 @@ function StudyBrowser(props) {
                     showProgressBar={showThumbnailProgressBar}
                   />
                   {showLoad && (
-                    <button
+                    <div
                       className="series-download-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onThumbnailClick(displaySetInstanceUID);
-                      }}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onThumbnailClick(displaySetInstanceUID)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onThumbnailClick(displaySetInstanceUID); } }}
                       title="Load this series into the viewer"
+                      style={{ touchAction: 'pan-y' }}
                     >
                       ⬇ Load Series
-                    </button>
+                    </div>
                   )}
                 </div>
               );

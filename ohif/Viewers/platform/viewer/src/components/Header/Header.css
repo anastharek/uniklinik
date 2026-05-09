@@ -1,7 +1,9 @@
 /* Viewer Route */
 .entry-header {
-  padding: 10px 15px;
+  padding: 8px 16px;
   height: var(--top-bar-height);
+  background-color: #121212;
+  border-bottom: 1px solid #2a2a2a;
 }
 
 .header-left-box {
@@ -18,7 +20,7 @@
 
 /* Home Page */
 .entry-header.header-big {
-  background: rgba(21, 25, 30, 0.7);
+  background: #121212;
   padding: 35px var(--study-list-padding);
   height: auto;
   display: inline-block;
@@ -60,49 +62,44 @@
 }
 
 .header-btn {
-  color: var(--text-secondary-color);
+  color: #8ea4b8;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 500;
   line-height: 26px;
+  letter-spacing: 0.02em;
+  transition: color 0.15s ease;
 }
 
 .header-btn:hover {
-  color: var(--hover-color);
+  color: #22d3ee;
 }
 
 .header-btn:active {
-  color: var(--active-color);
+  color: #22d3ee;
 }
 
 .header-studyListLinkSection {
-  border-left: var(--ui-border-thickness) solid var(--ui-border-color);
+  border-left: 1px solid #2a2a2a;
   margin: 3px 0 0 10px;
   padding: 0 0 0 10px;
   display: inline-block;
 }
 
 .header-menu {
-  color: var(--text-primary-color);
+  color: #8ea4b8;
   float: right;
   padding: 4px 0;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 400;
   line-height: 18px;
   text-decoration: none;
   margin-right: 10px;
+  letter-spacing: 0.02em;
 }
 
 .entry-header.header-big .header-menu {
   margin-right: 0;
-}
-
-.header-menu .research-use {
-  float: left;
-  font-size: 13px;
-  font-weight: 700;
-  color: #91b9cd;
-  margin-right: 1rem;
 }
 
 .notification-bar {
@@ -135,8 +132,5 @@
   /* Toggle Notification Bar */
   .notification-bar {
     display: block;
-  }
-  .header-menu .research-use {
-    display: none;
   }
 }

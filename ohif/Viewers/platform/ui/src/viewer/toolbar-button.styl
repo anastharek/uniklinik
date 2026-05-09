@@ -1,10 +1,13 @@
 .toolbar-button
   height: 48px;
-  color: var(--default-color);
+  color: #8ea4b8;
   float: left;
   text-align: center;
-  padding: 0 10px;
+  padding: 4px 8px;
   cursor: pointer;
+  border-radius: 6px;
+  background: transparent;
+  transition: all 0.15s ease;
   -webkit-touch-callout: none; /* iOS Safari */
   -webkit-user-select: none; /* Safari */
   -khtml-user-select: none; /* Konqueror HTML */
@@ -13,8 +16,10 @@
   user-select: none; /* Chrome and Opera */
 
   .toolbar-button-label
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    margin-top: 2px;
 
   .expand-caret
     width: 8px;
@@ -22,12 +27,15 @@
     transform: translate(2px, 2px);
 
   svg
-    height: 21px;
-    width: 21px;
-    margin: 2px;
+    height: 20px;
+    width: 20px;
+    margin: 1px 0 0 0;
+    stroke-width: 2;
 
   &:hover
-    color: var(--hover-color);
+    color: #cbd5e1;
+    background-color: #252525;
 
   &.active, &:active
-    color: var(--active-color);
+    color: #22d3ee;
+    background-color: #1e293b;
