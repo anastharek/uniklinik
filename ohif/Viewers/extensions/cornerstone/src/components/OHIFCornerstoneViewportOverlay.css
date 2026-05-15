@@ -1,129 +1,95 @@
-.imageViewerViewport.empty ~ .OHIFCornerstoneViewportOverlay {
-  display: none;
-}
+/* ── DICOM Viewport Overlay Typography ── */
 
-/* Enterprise PACS Overlay System */
 .OHIFCornerstoneViewportOverlay {
-  color: #8ea4b8;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  line-height: 1.5;
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
 }
 
 .OHIFCornerstoneViewportOverlay .overlay-element {
   position: absolute;
-  font-weight: 400;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.9);
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  color: #8ea4b8;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  line-height: 1.5em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.6);
   pointer-events: none;
-  line-height: 1.5;
+  opacity: 0.92;
 }
 
-/* Patient name and study description — readable sans-serif */
-.OHIFCornerstoneViewportOverlay .top-left div:first-child,
-.OHIFCornerstoneViewportOverlay .top-right div:first-child {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #e2e8f0;
-}
-
-/* Patient ID, dates — monospace cyan */
-.OHIFCornerstoneViewportOverlay .top-left div:nth-child(2),
-.OHIFCornerstoneViewportOverlay .top-right div:nth-child(2) {
-  color: #22d3ee;
-}
-
+/* Position anchors */
 .OHIFCornerstoneViewportOverlay .top-left {
-  top: 16px;
-  left: 16px;
+  top: 10px;
+  left: 12px;
 }
 
-.OHIFCornerstoneViewportOverlay .top-center {
-  top: 20px;
-  padding-top: 20px;
-  width: 100%;
-  text-align: center;
-}
-
-/* Top-right: offset for orientation indicator dot */
 .OHIFCornerstoneViewportOverlay .top-right {
-  top: 24px;
-  right: 16px;
+  top: 10px;
+  right: 12px;
   text-align: right;
-}
-
-/* ── Orientation indicator dots ── */
-.OHIFCornerstoneViewportOverlay .orientation-indicator {
-  transition: opacity 0.2s ease;
-  animation: orientation-pulse 2s ease-in-out infinite;
-}
-
-@keyframes orientation-pulse {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 0.5; }
-}
-
-.OHIFCornerstoneViewportOverlay .bottom-left {
-  bottom: 16px;
-  left: 16px;
-}
-
-.OHIFCornerstoneViewportOverlay .bottom-left div:first-child {
-  color: #22d3ee;
-}
-
-.OHIFCornerstoneViewportOverlay .bottom-left2 {
-  bottom: 140px;
-  left: 20px;
-}
-
-.OHIFCornerstoneViewportOverlay .bottom-left3 {
-  bottom: 110px;
-  left: -20px;
 }
 
 .OHIFCornerstoneViewportOverlay .bottom-right {
-  bottom: 16px;
-  right: 16px;
+  bottom: 10px;
+  right: 12px;
   text-align: right;
 }
 
-.OHIFCornerstoneViewportOverlay .bottom-right .compressionIndicator {
-  color: #64748b;
-  font-size: 9px;
-  letter-spacing: 0.06em;
-  margin-top: 2px;
+.OHIFCornerstoneViewportOverlay .bottom-left {
+  bottom: 10px;
+  left: 12px;
 }
 
-.OHIFCornerstoneViewportOverlay.controlsVisible .topright,
-.OHIFCornerstoneViewportOverlay.controlsVisible .bottomright {
-  right: calc(20px + 19px);
+.OHIFCornerstoneViewportOverlay .bottom-left2 {
+  bottom: 25px;
+  left: 12px;
 }
 
+.OHIFCornerstoneViewportOverlay .bottom-left3 {
+  bottom: 40px;
+  left: 12px;
+}
+
+/* Compression indicator */
+.OHIFCornerstoneViewportOverlay .compressionIndicator {
+  color: #f59e0b;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Warning icon */
 .OHIFCornerstoneViewportOverlay .warning {
-  position: absolute;
-  font-weight: 400;
-  text-shadow: 1px 1px #000;
-  pointer-events: inherit;
+  pointer-events: auto;
 }
 
-.OHIFCornerstoneViewportOverlay .warning svg {
-  opacity: 1;
+.OHIFCornerstoneViewportOverlay .warning-icon svg {
+  width: 16px;
+  height: 14px;
   color: #e29e4a;
-  fill: #e29e4a;
-  stroke: #e29e4a;
-  width: 32px;
-  height: 28px;
 }
 
-.OHIFCornerstoneViewportOverlay svg {
-  color: #9ccef9;
-  fill: #9ccef9;
-  stroke: #9ccef9;
-  background-color: transparent;
-  margin: 2px;
-  width: 18px;
-  height: 18px;
+/* SR Labels */
+.OHIFCornerstoneViewportOverlay .bottom-left3 button {
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 9px;
+  letter-spacing: 0.03em;
+}
+
+/* MPR orientation dot */
+.OHIFCornerstoneViewportOverlay .orientation-indicator {
+  transition: all 0.2s ease;
+}
+
+/* ── Media: slightly smaller text on mobile ── */
+@media (max-width: 768px) {
+  .OHIFCornerstoneViewportOverlay .overlay-element {
+    font-size: 10px;
+  }
 }

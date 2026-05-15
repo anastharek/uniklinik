@@ -37,6 +37,13 @@ import i18n from '@ohif/i18n';
 //import './config';
 import { setConfiguration } from './config';
 
+/** Crash recovery */
+import {
+  initGlobalErrorHandlers,
+  startHeartbeat,
+  initStabilityMode,
+} from './utils/crashRecovery';
+
 /** Utils */
 import {
   getUserManagerForOpenIdConnectClient,
@@ -165,8 +172,10 @@ class App extends Component {
     // Load global preferences (series filters, etc.) from server
     loadGlobalPreferences();
 
-    // Global error boundary — prevents white screen crashes from uncaught errors
-    _initGlobalErrorHandler(servicesManager);
+    // ── Stability Mode ──
+    initGlobalErrorHandlers();
+    startHeartbeat();
+    // Full stability check runs in Viewer.js when displaySets are available
   }
 
   render() {

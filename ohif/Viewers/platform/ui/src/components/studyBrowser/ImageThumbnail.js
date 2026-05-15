@@ -6,14 +6,7 @@ import React, { useState, useEffect, createRef, useCallback } from 'react';
 import classNames from 'classnames';
 
 import PropTypes from 'prop-types';
-import ViewportErrorIndicator from '../../viewer/ViewportErrorIndicator';
-import ViewportLoadingIndicator from '../../viewer/ViewportLoadingIndicator';
 
-// TODO: How should we have this component depend on Cornerstone?
-// - Passed in as a prop?
-// - Set as external dependency?
-// - Pass in the entire load and render function as a prop?
-//import cornerstone from 'cornerstone-core';
 function ImageThumbnail(props) {
   const {
     active,
@@ -25,6 +18,8 @@ function ImageThumbnail(props) {
     stackPercentComplete,
     error: propsError,
     showProgressBar,
+    zipProgress,
+    isZipping,
   } = props;
 
   const [isLoading, setLoading] = useState(false);
@@ -36,39 +31,23 @@ function ImageThumbnail(props) {
   // Effective image source: prop or Orthanc preview
   const effectiveImageSrc = imageSrc || previewSrc;
 
-  let loadingOrError;
-  let cancelablePromise;
-
-  if (propsError || error) {
-    loadingOrError = <ViewportErrorIndicator />;
-  } else if (isLoading) {
-    loadingOrError = <ViewportLoadingIndicator />;
-  }
-
   const showStackLoadingProgressBar =
     showProgressBar && stackPercentComplete !== undefined;
 
-  // Use Orthanc preview endpoint instead of cornerstone for thumbnails.
-  // This prevents cornerstone cache flooding on studies with many series (e.g. angiograms).
+  // Use Orthanc preview endpoint instead of cornerstone for thumbnails
   const shouldRenderToCanvas = () => {
     return !effectiveImageSrc && imageId && active;
   };
 
+  // ── Load and render via cornerstone (active only) ──
+  let cancelablePromise;
   const fetchImagePromise = () => {
-    if (!cancelablePromise) {
-      return;
-    }
-
+    if (!cancelablePromise) return;
     setLoading(true);
     cancelablePromise
-      .then(response => {
-        setImage(response);
-      })
+      .then(response => setImage(response))
       .catch(error => {
         if (error.isCanceled) return;
-        // setLoading(false);
-        // setError(true);
-        // throw new Error(error);
       });
   };
 
@@ -81,50 +60,36 @@ function ImageThumbnail(props) {
   };
 
   const purgeCancelablePromise = useCallback(() => {
-    if (cancelablePromise) {
-      cancelablePromise.cancel();
-    }
+    if (cancelablePromise) cancelablePromise.cancel();
   });
 
   useEffect(() => {
-    return () => {
-      purgeCancelablePromise();
-    };
+    return () => purgeCancelablePromise();
   }, [purgeCancelablePromise]);
 
   useEffect(() => {
     if (image.imageId && canvasRef.current) {
       const canvas = canvasRef.current;
       if (canvas.width > 0 && canvas.height > 0) {
-        try {
-          cornerstone.renderToCanvas(canvas, image);
-        } catch (err) {
-          // Canvas not ready yet, cornerstone will retry
-        }
+        try { cornerstone.renderToCanvas(canvas, image); } catch (err) {}
       }
       setLoading(false);
     }
   }, [canvasRef, image, image.imageId]);
 
-  // Fetch Orthanc series preview JPEG (bypasses cornerstone for thumbnails)
+  // Fetch Orthanc series preview JPEG
   useEffect(() => {
     if (imageId && seriesInstanceUid && !imageSrc && !previewSrc) {
       fetch(`/api/series/${seriesInstanceUid}/thumbnail`)
-        .then(r => {
-          if (!r.ok) throw new Error('Preview unavailable');
-          return r.blob();
-        })
+        .then(r => { if (!r.ok) throw new Error('Preview unavailable'); return r.blob(); })
         .then(blob => URL.createObjectURL(blob))
         .then(url => setPreviewSrc(url))
         .catch(() => {});
     }
   }, [imageId, seriesInstanceUid, active, imageSrc, previewSrc]);
 
-  // Cleanup blob URL
   useEffect(() => {
-    return () => {
-      if (previewSrc) URL.revokeObjectURL(previewSrc);
-    };
+    return () => { if (previewSrc) URL.revokeObjectURL(previewSrc); };
   }, [previewSrc]);
 
   useEffect(() => {
@@ -133,13 +98,14 @@ function ImageThumbnail(props) {
       setImagePromise();
       fetchImagePromise();
     }
-  }, [
-    fetchImagePromise,
-    image.imageId,
-    imageId,
-    purgeCancelablePromise,
-    setImagePromise,
-  ]);
+  }, [fetchImagePromise, image.imageId, imageId, purgeCancelablePromise, setImagePromise]);
+
+  // ── Determine progress state ──
+  const hasLoadProgress = stackPercentComplete > 0 && stackPercentComplete < 100;
+  const hasZipProgress = isZipping && zipProgress > 0 && zipProgress < 100;
+  const showOverlay = hasLoadProgress || hasZipProgress;
+  const overlayPercent = hasZipProgress ? zipProgress : stackPercentComplete;
+  const overlayType = hasZipProgress ? 'zip' : 'load';
 
   return (
     <div className={classNames('ImageThumbnail', { active: active })}>
@@ -155,8 +121,24 @@ function ImageThumbnail(props) {
           />
         )}
       </div>
-      {loadingOrError}
-      {showStackLoadingProgressBar && (
+
+      {/* ── Progress overlay (load or zip) ── */}
+      {showOverlay && (
+        <div className={classNames('thumbnail-progress-overlay', { 'zip-overlay': overlayType === 'zip' })}>
+          <div className="percent-badge">
+            {Math.round(overlayPercent)}%
+          </div>
+          <div className="progress-bar-edge">
+            <div
+              className={classNames('progress-bar-fill', { 'zip-fill': overlayType === 'zip' })}
+              style={{ width: `${overlayPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Legacy progress bar (below thumbnail) ── */}
+      {showStackLoadingProgressBar && !showOverlay && (
         <div className="image-thumbnail-progress-bar">
           <div
             className="image-thumbnail-progress-bar-inner"
@@ -164,7 +146,14 @@ function ImageThumbnail(props) {
           />
         </div>
       )}
-      {isLoading && <div className="image-thumbnail-loading-indicator"></div>}
+
+      {/* ── Plane indicator dot ── */}
+      {props.planeIndicator && (
+        <div
+          className="plane-indicator"
+          style={{ backgroundColor: props.planeIndicator }}
+        />
+      )}
     </div>
   );
 }
@@ -179,6 +168,9 @@ ImageThumbnail.propTypes = {
   height: PropTypes.number,
   stackPercentComplete: PropTypes.number.isRequired,
   showProgressBar: PropTypes.bool,
+  zipProgress: PropTypes.number,
+  isZipping: PropTypes.bool,
+  planeIndicator: PropTypes.string,
 };
 
 ImageThumbnail.defaultProps = {
@@ -188,6 +180,8 @@ ImageThumbnail.defaultProps = {
   width: 217,
   height: 123,
   showProgressBar: true,
+  isZipping: false,
+  zipProgress: 0,
 };
 
 export default ImageThumbnail;

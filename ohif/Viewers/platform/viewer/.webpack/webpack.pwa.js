@@ -39,6 +39,8 @@ module.exports = (env, argv) => {
   const hasProxy = PROXY_TARGET && PROXY_DOMAIN;
 
   const mergedConfig = merge(baseConfig, {
+    // Disable sourcemaps in production to avoid SourceMapConsumer WASM error
+    devtool: isProdBuild ? false : 'eval-cheap-module-source-map',
     entry: {
       app: ENTRY_TARGET,
     },

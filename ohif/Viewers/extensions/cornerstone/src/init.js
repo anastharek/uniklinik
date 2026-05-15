@@ -183,6 +183,27 @@ export default function init({ servicesManager, configuration }) {
   csTools.setToolActive('PanMultiTouch', { pointers: 2 }); // TODO: Better error if no options
   csTools.setToolActive('ZoomTouchPinch', {});
   csTools.setToolEnabled('Overlay', {});
+
+  // ── Crash Recovery: Set Cornerstone image cache limit ──
+  const MAX_CACHE_MB =
+    (typeof window !== 'undefined' &&
+      window.config &&
+      window.config.maxCornerstoneCacheMB) ||
+    512;
+  try {
+    if (cornerstone.imageCache && cornerstone.imageCache.setMaximumSizeBytes) {
+      cornerstone.imageCache.setMaximumSizeBytes(
+        MAX_CACHE_MB * 1024 * 1024
+      );
+      console.log(
+        '[OHIF] Cornerstone image cache limit set to',
+        MAX_CACHE_MB,
+        'MB'
+      );
+    }
+  } catch (e) {
+    console.warn('[OHIF] Failed to set cornerstone cache limit:', e);
+  }
 }
 
 const _initMeasurementService = measurementService => {

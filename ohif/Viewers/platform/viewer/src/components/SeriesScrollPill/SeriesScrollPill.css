@@ -1,0 +1,84 @@
+/* ── Pill Scroll Track (invisible container, defines pill bounds) ── */
+.series-scroll-pill-track {
+  position: absolute;
+  top: 8px;
+  right: 2px;
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  width: 24px;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.series-scroll-pill-track.pill-visible {
+  opacity: 1;
+}
+
+/* ── Pill Handle ── */
+.series-scroll-pill {
+  position: absolute;
+  right: 4px;
+  width: 10px;
+  min-height: 48px;
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.35);
+  border: 1px solid rgba(34, 211, 238, 0.6);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.2);
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+  transition: background 120ms ease, opacity 120ms ease;
+  opacity: 0.45;
+  user-select: none;
+  -webkit-user-select: none;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.series-scroll-pill:active,
+.series-scroll-pill:hover {
+  background: rgba(34, 211, 238, 0.55);
+  opacity: 1;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.4);
+}
+
+.series-scroll-pill.dragging {
+  background: rgba(34, 211, 238, 0.8);
+  cursor: grabbing;
+  opacity: 1;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.55);
+  width: 12px;
+  right: 3px;
+}
+
+/* ── Mobile Adjustments ── */
+@media (max-width: 768px) {
+  .series-scroll-pill-track {
+    right: 1px;
+    bottom: calc(130px + env(safe-area-inset-bottom));
+    width: 28px;
+  }
+
+  .series-scroll-pill {
+    width: 12px;
+    min-height: 56px;
+    right: 3px;
+  }
+
+  /* Invisible hit area extension for easier touch targeting */
+  .series-scroll-pill::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    left: -12px;
+    right: -12px;
+    bottom: -14px;
+    border-radius: 999px;
+  }
+
+  .series-scroll-pill.dragging {
+    width: 14px;
+    right: 2px;
+  }
+}

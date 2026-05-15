@@ -69,6 +69,7 @@ const mapStateToProps = (state, ownProps) => {
     isPlaying,
     frameRate,
     cornerstoneOptions: isMobile ? { renderer: 'canvas' } : {},
+    loadIndicatorDelay: 0,
     //stack: viewportSpecificData.stack,
     // viewport: viewportSpecificData.viewport,
   };

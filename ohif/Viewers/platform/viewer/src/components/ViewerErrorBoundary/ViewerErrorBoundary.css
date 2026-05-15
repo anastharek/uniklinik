@@ -1,0 +1,129 @@
+.viewer-error-boundary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: #0a0a0a;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.veb-card {
+  background: #1a1a2e;
+  border: 1px solid #2a3f54;
+  border-radius: 12px;
+  padding: 40px;
+  max-width: 520px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.veb-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.veb-title {
+  color: #e0e0e0;
+  font-size: 22px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.veb-message {
+  color: #8ea4b8;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+}
+
+.veb-error-details {
+  background: #0a0a0a;
+  border: 1px solid #2a2a3e;
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.veb-error-details code {
+  color: #f59e0b;
+  font-size: 13px;
+  word-break: break-word;
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+}
+
+.veb-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.veb-btn {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  width: 100%;
+}
+
+.veb-btn-primary {
+  background: #22d3ee;
+  color: #0a0a0a;
+}
+
+.veb-btn-primary:hover {
+  background: #06b6d4;
+}
+
+.veb-btn-secondary {
+  background: #2a3f54;
+  color: #e0e0e0;
+  border: 1px solid #3a4f64;
+}
+
+.veb-btn-secondary:hover {
+  background: #3a4f64;
+}
+
+.veb-btn-danger {
+  background: transparent;
+  color: #8ea4b8;
+  border: 1px solid #2a2a3e;
+  font-size: 12px;
+}
+
+.veb-btn-danger:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #e0e0e0;
+}
+
+.veb-stack {
+  margin-top: 20px;
+  text-align: left;
+}
+
+.veb-stack summary {
+  color: #8ea4b8;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.veb-stack pre {
+  background: #0a0a0a;
+  border: 1px solid #2a2a3e;
+  border-radius: 6px;
+  padding: 12px;
+  margin-top: 8px;
+  overflow-x: auto;
+  font-size: 11px;
+  color: #8ea4b8;
+  font-family: 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  line-height: 1.4;
+  max-height: 200px;
+  overflow-y: auto;
+}

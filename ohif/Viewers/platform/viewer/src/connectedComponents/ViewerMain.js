@@ -6,6 +6,7 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import memoize from 'lodash/memoize';
 import _values from 'lodash/values';
+import cornerstone from 'cornerstone-core';
 
 var values = memoize(_values);
 
@@ -80,6 +81,34 @@ class ViewerMain extends Component {
     ) {
       const displaySets = this.getDisplaySets(this.props.studies);
       this.setState({ displaySets });
+
+      // ── Crash Recovery: Purge cornerstone cache on study switch ──
+      if (this.props.studies !== prevProps.studies) {
+        const oldStudyUID =
+          prevProps.studies && prevProps.studies[0]
+            ? prevProps.studies[0].StudyInstanceUID
+            : null;
+        const newStudyUID =
+          this.props.studies && this.props.studies[0]
+            ? this.props.studies[0].StudyInstanceUID
+            : null;
+
+        if (oldStudyUID && newStudyUID && oldStudyUID !== newStudyUID) {
+          try {
+            if (cornerstone.imageCache && cornerstone.imageCache.purgeCache) {
+              cornerstone.imageCache.purgeCache();
+              console.log(
+                '[OHIF] Cache purged for study switch:',
+                oldStudyUID,
+                '→',
+                newStudyUID
+              );
+            }
+          } catch (e) {
+            console.warn('[OHIF] Cache purge failed:', e);
+          }
+        }
+      }
     }
   }
 

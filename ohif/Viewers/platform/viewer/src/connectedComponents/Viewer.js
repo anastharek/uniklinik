@@ -11,8 +11,33 @@ import ConnectedStudyBrowser from './ConnectedStudyBrowser.js';
 import ConnectedViewerMain from './ConnectedViewerMain.js';
 import SidePanel from './../components/SidePanel.js';
 import ErrorBoundaryDialog from './../components/ErrorBoundaryDialog';
+import ViewerErrorBoundary from './../components/ViewerErrorBoundary/ViewerErrorBoundary.js';
 import { extensionManager, servicesManager } from './../App.js';
 import { ReconstructionIssues } from './../../../core/src/enums.js';
+
+/** Stability Mode */
+import {
+  saveSession,
+  getLastSession,
+  isRecoveryMode,
+  isLargeStudyDetected,
+  isMobileLargeStudyDetected,
+  checkStabilityMode,
+  initStabilityMode,
+  getStabilityBannerText,
+  setStabilityOverride,
+  clearStabilityOverride,
+  getStabilityOverride,
+  hideStabilityBanner,
+  isStabilityBannerHidden,
+  hideLargeStudyBanner,
+  isLargeStudyBannerHidden,
+  LARGE_STUDY_SERIES_THRESHOLD,
+  SERIES_INCREMENT,
+  INITIAL_THUMBNAILS_MOBILE,
+  INITIAL_THUMBNAILS_DESKTOP,
+  isMobile,
+} from '../utils/crashRecovery';
 
 // Contexts
 import WhiteLabelingContext from '../context/WhiteLabelingContext.js';
@@ -99,6 +124,15 @@ class Viewer extends Component {
     selectedRightSidePanel: '',
     selectedLeftSidePanel: 'studies', // TODO: Don't hardcode this
     thumbnails: [],
+    // Stability Mode
+    stabilityMode: false,
+    stabilityResult: null, // { stabilityMode, crashDetected, largeStudy, reason, ... }
+    visibleThumbnailLimit: isMobile() ? INITIAL_THUMBNAILS_MOBILE : INITIAL_THUMBNAILS_DESKTOP,
+    showLoadMorePrompt: false,
+    bannerDismissed: false,
+    // Single-series tab mode
+    singleSeriesMode: false,
+    targetSeriesInstanceUID: null,
   };
 
   componentWillUnmount() {
@@ -210,12 +244,109 @@ class Viewer extends Component {
       const activeDisplaySetInstanceUID = activeViewport
         ? activeViewport.displaySetInstanceUID
         : undefined;
+
+      // ── Single-series tab mode detection ──
+      const urlParams = new URLSearchParams(window.location.search);
+      const singleSeriesMode = urlParams.get('singleSeries') === 'true';
+      const targetSeriesInstanceUID = urlParams.get('SeriesInstanceUID');
+
+      // Use filteredStudies so we don't mutate frozen Redux props
+      let filteredStudies = studies;
+
+      if (singleSeriesMode && targetSeriesInstanceUID) {
+        console.log('[SINGLE SERIES MODE]', {
+          singleSeriesMode,
+          targetSeriesInstanceUID,
+        });
+
+        // Filter each study's displaySets to only the target series
+        filteredStudies = studies.map(study => ({
+          ...study,
+          displaySets: (study.displaySets || []).filter(ds => {
+            const match = (ds.SeriesInstanceUID || '').toLowerCase() === targetSeriesInstanceUID.toLowerCase();
+            if (!match) {
+              console.log('[SINGLE SERIES FILTER] Skipped:', ds.SeriesDescription || ds.SeriesNumber, ds.SeriesInstanceUID);
+            }
+            return match;
+          }),
+        }));
+
+        console.log('[SINGLE SERIES FILTER]', {
+          targetSeriesInstanceUID,
+          filteredDisplaySets: filteredStudies.reduce((sum, s) => sum + (s.displaySets || []).length, 0),
+        });
+
+        // If no matching series found, keep original studies (don't break viewer)
+        const hasAnyDisplaySets = filteredStudies.some(s => (s.displaySets || []).length > 0);
+        if (!hasAnyDisplaySets) {
+          console.warn('[SINGLE SERIES FILTER] No matching series found — showing full study');
+          filteredStudies = studies;
+        }
+      }
+
+      // Use filteredStudies for all subsequent processing
+
+      // ── Stability Mode check ──
+      // Single-series mode: never need stability protections
+      let stabilityResult = { stabilityMode: false, crashDetected: false, largeStudy: false, mobileLargeStudy: false, reason: 'single-series-mode' };
+      let stabilityOn = false;
+
+      if (!singleSeriesMode) {
+        let totalDisplaySets = 0;
+        filteredStudies.forEach(s => { totalDisplaySets += (s.displaySets || []).length; });
+        stabilityResult = initStabilityMode(totalDisplaySets);
+        stabilityOn = stabilityResult.stabilityMode;
+
+        if (stabilityOn) {
+          console.log('[OHIF Stability] Mode ON —', stabilityResult.reason);
+        }
+
+        console.log('[OHIF Stability Mode]', {
+          stabilityMode: stabilityOn,
+          crashRecoveryDetected: stabilityResult.crashDetected,
+          largeStudyDetected: stabilityResult.largeStudy,
+          mobileLargeStudyDetected: stabilityResult.mobileLargeStudy,
+          manualOverride: getStabilityOverride(),
+          displaySetCount: totalDisplaySets,
+          visibleSeriesCount: stabilityOn ? limit : totalDisplaySets,
+        });
+      } else {
+        // Clear any stale crash flag inherited from main tab
+        try { sessionStorage.removeItem('ohif_crash_detected'); } catch(e) {}
+        console.log('[OHIF Stability] Skipped — single-series mode');
+      }
+
+      // ── Build thumbnails from filtered studies ──
+      const thumbnails = _mapStudiesToThumbnails(
+        filteredStudies,
+        activeDisplaySetInstanceUID
+      );
+
+      // ── Limit thumbnails if stability mode ──
+      let visibleThumbnails = thumbnails;
+      const limit = stabilityOn
+        ? (isMobile() ? INITIAL_THUMBNAILS_MOBILE : INITIAL_THUMBNAILS_DESKTOP)
+        : Infinity;
+
+      if (stabilityOn) {
+        visibleThumbnails = thumbnails.map(study => ({
+          ...study,
+          thumbnails: study.thumbnails.slice(0, limit),
+          _allThumbnails: study.thumbnails,
+        }));
+      }
+
       this.setState({
-        thumbnails: _mapStudiesToThumbnails(
-          studies,
-          activeDisplaySetInstanceUID
-        ),
+        thumbnails: visibleThumbnails,
+        stabilityMode: stabilityOn,
+        stabilityResult,
+        visibleThumbnailLimit: stabilityOn ? limit : 9999,
+        singleSeriesMode,
+        targetSeriesInstanceUID,
       });
+
+      // ── Save initial session ──
+      this._saveCurrentSession();
     }
 
     document.addEventListener(
@@ -249,13 +380,44 @@ class Viewer extends Component {
       activeViewportIndex !== prevProps.activeViewportIndex ||
       activeDisplaySetInstanceUID !== prevActiveDisplaySetInstanceUID
     ) {
+      // ── Apply single-series filter in componentDidUpdate too ──
+      const { singleSeriesMode, targetSeriesInstanceUID } = this.state;
+      let effectiveStudies = studies;
+      if (singleSeriesMode && targetSeriesInstanceUID) {
+        effectiveStudies = studies.map(study => ({
+          ...study,
+          displaySets: (study.displaySets || []).filter(ds =>
+            (ds.SeriesInstanceUID || '').toLowerCase() === targetSeriesInstanceUID.toLowerCase()
+          ),
+        }));
+      }
+
+      const thumbnails = _mapStudiesToThumbnails(
+        effectiveStudies,
+        activeDisplaySetInstanceUID
+      );
+
+      // ── Stability: limit thumbnails ──
+      let totalDisplaySets = 0;
+      effectiveStudies.forEach(s => { totalDisplaySets += (s.displaySets || []).length; });
+      const stabilityOn = this.state.stabilityMode;
+
+      let visibleThumbnails = thumbnails;
+      if (stabilityOn) {
+        visibleThumbnails = thumbnails.map(study => ({
+          ...study,
+          thumbnails: study.thumbnails.slice(0, this.state.visibleThumbnailLimit),
+          _allThumbnails: study.thumbnails,
+        }));
+      }
+
       this.setState({
-        thumbnails: _mapStudiesToThumbnails(
-          studies,
-          activeDisplaySetInstanceUID
-        ),
+        thumbnails: visibleThumbnails,
         activeDisplaySetInstanceUID,
       });
+
+      // Save session on meaningful change
+      this._saveCurrentSession();
     }
     if (isStudyLoaded && isStudyLoaded !== prevProps.isStudyLoaded) {
       const PatientID = studies[0] && studies[0].PatientID;
@@ -272,6 +434,18 @@ class Viewer extends Component {
 
   _updateThumbnails() {
     const { studies, activeViewportIndex, viewports } = this.props;
+    const { singleSeriesMode, targetSeriesInstanceUID } = this.state;
+
+    // Filter to single series in single-series mode
+    let effectiveStudies = studies;
+    if (singleSeriesMode && targetSeriesInstanceUID) {
+      effectiveStudies = studies.map(study => ({
+        ...study,
+        displaySets: (study.displaySets || []).filter(ds =>
+          (ds.SeriesInstanceUID || '').toLowerCase() === targetSeriesInstanceUID.toLowerCase()
+        ),
+      }));
+    }
 
     const activeViewport = viewports[activeViewportIndex];
     const activeDisplaySetInstanceUID = activeViewport
@@ -279,7 +453,7 @@ class Viewer extends Component {
       : undefined;
 
     this.setState({
-      thumbnails: _mapStudiesToThumbnails(studies, activeDisplaySetInstanceUID),
+      thumbnails: _mapStudiesToThumbnails(effectiveStudies, activeDisplaySetInstanceUID),
       activeDisplaySetInstanceUID,
     });
   }
@@ -287,6 +461,151 @@ class Viewer extends Component {
   _getActiveViewport() {
     return this.props.viewports[this.props.activeViewportIndex];
   }
+
+  /**
+   * Save current viewer session to localStorage for crash recovery.
+   */
+  _saveCurrentSession() {
+    try {
+      const { studies, viewports, activeViewportIndex } = this.props;
+      if (!studies || !studies.length) return;
+
+      const activeVp = viewports[activeViewportIndex];
+      const session = {
+        studyInstanceUIDs: studies.map(s => s.StudyInstanceUID),
+        StudyInstanceUID: studies[0] ? studies[0].StudyInstanceUID : null,
+        SeriesInstanceUID: activeVp ? activeVp.SeriesInstanceUID || null : null,
+        displaySetInstanceUID: activeVp ? activeVp.displaySetInstanceUID || null : null,
+        currentRoute: window.location.pathname,
+        viewportLayout: {
+          rows: activeVp ? (activeVp.viewportData ? activeVp.viewportData.rows : 1) : 1,
+          columns: activeVp ? (activeVp.viewportData ? activeVp.viewportData.columns : 1) : 1,
+        },
+        activeViewportIndex,
+        imageIndex: activeVp ? activeVp.imageIndex || 0 : 0,
+      };
+      saveSession(session);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  /**
+   * Snapshot for error boundary (synchronous, no props access issues).
+   */
+  getSessionSnapshot = () => {
+    try {
+      const { studies, viewports, activeViewportIndex } = this.props;
+      if (!studies || !studies.length) return null;
+      const activeVp = viewports[activeViewportIndex];
+      return {
+        StudyInstanceUID: studies[0] ? studies[0].StudyInstanceUID : null,
+        displaySetInstanceUID: activeVp ? activeVp.displaySetInstanceUID || null : null,
+        SeriesInstanceUID: activeVp ? activeVp.SeriesInstanceUID || null : null,
+        currentRoute: window.location.pathname,
+      };
+    } catch (e) {
+      return null;
+    }
+  };
+
+  handleShowMoreSeries = () => {
+    this.setState(prev => {
+      const newLimit = prev.visibleThumbnailLimit + SERIES_INCREMENT;
+      const thumbnails = _mapStudiesToThumbnails(
+        this.props.studies,
+        this.props.viewports[this.props.activeViewportIndex]
+          ? this.props.viewports[this.props.activeViewportIndex].displaySetInstanceUID
+          : undefined
+      );
+      return {
+        visibleThumbnailLimit: newLimit,
+        showLoadMorePrompt: false,
+        thumbnails: thumbnails.map(s => ({
+          ...s,
+          _allThumbnails: s._allThumbnails || s.thumbnails,
+          thumbnails: (s._allThumbnails || s.thumbnails).slice(0, newLimit),
+        })),
+      };
+    });
+  };
+
+  /**
+   * Handle scroll in series panel — show "Load more" prompt if near bottom
+   */
+  handleSeriesScroll = (event) => {
+    const el = event.currentTarget;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const hasMore = this.state.thumbnails.some(
+      s => s._allThumbnails && s._allThumbnails.length > this.state.visibleThumbnailLimit
+    );
+    if (distFromBottom < 160 && hasMore && !this.state.showLoadMorePrompt) {
+      this.setState({ showLoadMorePrompt: true });
+    }
+  };
+
+  /**
+   * Turn stability mode on/off manually
+   */
+  handleToggleStabilityMode = () => {
+    const currentOn = this.state.stabilityMode;
+    if (currentOn) {
+      // Turning OFF — show confirmation if large study
+      if (this.state.stabilityResult && this.state.stabilityResult.largeStudy) {
+        const confirmed = window.confirm(
+          'Turning off Stability Mode may increase memory use and may cause the viewer to reload on large studies.'
+        );
+        if (!confirmed) return;
+      }
+      setStabilityOverride('off');
+      // Show all thumbnails
+      const allThumbnails = _mapStudiesToThumbnails(
+        this.props.studies,
+        this.props.viewports[this.props.activeViewportIndex]
+          ? this.props.viewports[this.props.activeViewportIndex].displaySetInstanceUID
+          : undefined
+      );
+      this.setState({
+        stabilityMode: false,
+        stabilityResult: { ...this.state.stabilityResult, stabilityMode: false, reason: 'manual_off' },
+        visibleThumbnailLimit: 9999,
+        thumbnails: allThumbnails,
+      });
+    } else {
+      // Turning ON
+      setStabilityOverride('on');
+      const limit = isMobile() ? INITIAL_THUMBNAILS_MOBILE : INITIAL_THUMBNAILS_DESKTOP;
+      const thumbnails = _mapStudiesToThumbnails(
+        this.props.studies,
+        this.props.viewports[this.props.activeViewportIndex]
+          ? this.props.viewports[this.props.activeViewportIndex].displaySetInstanceUID
+          : undefined
+      );
+      this.setState({
+        stabilityMode: true,
+        stabilityResult: { ...this.state.stabilityResult, stabilityMode: true, reason: 'manual_on' },
+        visibleThumbnailLimit: limit,
+        thumbnails: thumbnails.map(s => ({
+          ...s,
+          _allThumbnails: s._allThumbnails || s.thumbnails,
+          thumbnails: (s._allThumbnails || s.thumbnails).slice(0, limit),
+        })),
+      });
+    }
+  };
+
+  handleDismissBanner = () => {
+    hideStabilityBanner();
+    this.setState({ bannerDismissed: true });
+  };
+
+  handleOpenFullStudy = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('singleSeries');
+    url.searchParams.delete('SeriesInstanceUID');
+    window.location.href = url.toString();
+  };
 
   render() {
     let VisiblePanelLeft, VisiblePanelRight;
@@ -302,8 +621,24 @@ class Viewer extends Component {
       });
     });
 
+    const { stabilityMode, stabilityResult, thumbnails, visibleThumbnailLimit, showLoadMorePrompt, bannerDismissed, singleSeriesMode, targetSeriesInstanceUID } = this.state;
+    const bannerText = stabilityResult ? getStabilityBannerText(stabilityResult) : null;
+    const showBanner = stabilityMode && bannerText && !bannerDismissed && !isStabilityBannerHidden();
+    const isLargeStudy = stabilityResult && stabilityResult.largeStudy;
+    const isCrashDetected = stabilityResult && stabilityResult.crashDetected;
+
+    // Check if any study has hidden thumbnails
+    // Don't show "Load more" in single-series mode — only 1 series exists
+    const hasMoreSeries = singleSeriesMode
+      ? false
+      : thumbnails.some(
+        s => s._allThumbnails && s._allThumbnails.length > visibleThumbnailLimit
+      );
+
     return (
-      <>
+      <ViewerErrorBoundary
+        onSaveSession={this.getSessionSnapshot}
+      >
         {/* HEADER */}
         <WhiteLabelingContext.Consumer>
           {whiteLabeling => (
@@ -332,6 +667,72 @@ class Viewer extends Component {
             </UserManagerContext.Consumer>
           )}
         </WhiteLabelingContext.Consumer>
+
+        {/* STABILITY MODE BANNER */}
+        {showBanner && (
+          <div className="stability-banner">
+            <div className="stability-banner-inner">
+              <span className="stability-banner-icon">
+                {isCrashDetected ? '↻' : '⚡'}
+              </span>
+              <span className="stability-banner-text">
+                {bannerText}
+                {isLargeStudy && (
+                  <span className="stability-banner-hint">
+                    For transfer or offline review, use ZIP on individual series instead of loading all series.
+                  </span>
+                )}
+              </span>
+              <span className="stability-banner-actions">
+                <button
+                  className="stability-banner-btn stability-banner-btn-keep"
+                  onClick={this.handleDismissBanner}
+                >
+                  Keep On
+                </button>
+                <button
+                  className="stability-banner-btn stability-banner-btn-off"
+                  onClick={() => {
+                    this.handleToggleStabilityMode();
+                    this.handleDismissBanner();
+                  }}
+                >
+                  Turn Off
+                </button>
+                <button
+                  className="stability-banner-btn stability-banner-btn-close"
+                  onClick={this.handleDismissBanner}
+                  title="Close"
+                >
+                  ✕
+                </button>
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* SINGLE-SERIES MODE BANNER */}
+        {singleSeriesMode && targetSeriesInstanceUID && (
+          <div className="stability-banner single-series-banner">
+            <div className="stability-banner-inner">
+              <span className="stability-banner-icon">
+                ◉
+              </span>
+              <span className="stability-banner-text">
+                Single-series mode: only this sequence is loaded for stability.
+              </span>
+              <span className="stability-banner-actions">
+                <button
+                  className="stability-banner-btn stability-banner-btn-keep"
+                  onClick={this.handleOpenFullStudy}
+                >
+                  Open Full Study
+                </button>
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* TOOLBAR */}
         <ErrorBoundaryDialog context="ToolbarRow">
           <ToolbarRow
@@ -350,6 +751,8 @@ class Viewer extends Component {
                 ? this.state.selectedRightSidePanel
                 : ''
             }
+            stabilityMode={stabilityMode}
+            onToggleStabilityMode={this.handleToggleStabilityMode}
             handleSidePanelChange={(side, selectedPanel) => {
               const sideClicked = side && side[0].toUpperCase() + side.slice(1);
               const openKey = `is${sideClicked}SidePanelOpen`;
@@ -392,18 +795,52 @@ class Viewer extends Component {
                 <AppContext.Consumer>
                   {appContext => {
                     const { appConfig } = appContext;
-                    const { studyPrefetcher } = appConfig;
-                    const { thumbnails } = this.state;
+                    const studyPrefetcher = appConfig.studyPrefetcher;
+                    const prefetchEnabled = !stabilityMode && studyPrefetcher && studyPrefetcher.enabled;
                     return (
-                      <ConnectedStudyBrowser
-                        studies={thumbnails}
-                        studyMetadata={this.props.studies}
-                        showThumbnailProgressBar={
-                          studyPrefetcher &&
-                          studyPrefetcher.enabled &&
-                          studyPrefetcher.displayProgress
-                        }
-                      />
+                      <div
+                        className="series-scroll-container"
+                        onScroll={this.handleSeriesScroll}
+                      >
+                        <ConnectedStudyBrowser
+                          studies={thumbnails}
+                          studyMetadata={this.props.studies}
+                          showThumbnailProgressBar={
+                            prefetchEnabled &&
+                            studyPrefetcher.displayProgress
+                          }
+                          stabilityMode={stabilityMode}
+                        />
+                        {/* Scroll load-more prompt */}
+                        {showLoadMorePrompt && hasMoreSeries && (
+                          <div className="load-more-prompt">
+                            <span className="load-more-prompt-text">
+                              Load more series?
+                            </span>
+                            <button
+                              className="load-more-prompt-btn load-more-prompt-btn-yes"
+                              onClick={this.handleShowMoreSeries}
+                            >
+                              Load 20 more
+                            </button>
+                            <button
+                              className="load-more-prompt-btn load-more-prompt-btn-no"
+                              onClick={() => this.setState({ showLoadMorePrompt: false })}
+                            >
+                              Not now
+                            </button>
+                          </div>
+                        )}
+                        {/* Manual load-more button */}
+                        {hasMoreSeries && (
+                          <button
+                            className="load-more-manual-btn"
+                            onClick={this.handleShowMoreSeries}
+                          >
+                            Load more series
+                          </button>
+                        )}
+                      </div>
                     );
                   }}
                 </AppContext.Consumer>
@@ -417,11 +854,11 @@ class Viewer extends Component {
               <AppContext.Consumer>
                 {appContext => {
                   const { appConfig } = appContext;
-                  const { studyPrefetcher } = appConfig;
+                  const studyPrefetcher = appConfig.studyPrefetcher;
                   const { studies } = this.props;
+                  const prefetchEnabled = !stabilityMode && studyPrefetcher && studyPrefetcher.enabled;
                   return (
-                    studyPrefetcher &&
-                    studyPrefetcher.enabled && (
+                    prefetchEnabled && (
                       <StudyPrefetcher
                         studies={studies}
                         options={studyPrefetcher}
@@ -455,7 +892,7 @@ class Viewer extends Component {
             </SidePanel>
           </ErrorBoundaryDialog>
         </div>
-      </>
+      </ViewerErrorBoundary>
     );
   }
 }

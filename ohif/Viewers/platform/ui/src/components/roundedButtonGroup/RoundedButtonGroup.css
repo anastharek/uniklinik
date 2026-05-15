@@ -60,12 +60,8 @@
   letter-spacing: 0.04em;
 }
 
-.roundedButtonWrapper
-  .roundedButton
-  svg
-  .roundedButtonWrapper
-  .roundedButton
-  span {
+.roundedButtonWrapper .roundedButton svg,
+.roundedButtonWrapper .roundedButton span {
   margin: 0 2px;
 }
 
@@ -102,13 +98,14 @@
 }
 
 .roundedButtonWrapper:hover .roundedButton {
-  background-color: #252525;
+  background-color: rgba(42, 63, 84, 0.3);
   color: #cbd5e1;
 }
 
 .roundedButtonWrapper.active .roundedButton {
-  background-color: #1e293b;
+  background-color: #2a3f54;
   border-color: rgba(34, 211, 238, 0.4);
   color: #22d3ee;
   z-index: 2;
+  box-shadow: inset 0 2px 0 #22d3ee;
 }

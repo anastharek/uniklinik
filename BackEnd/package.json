@@ -29,6 +29,7 @@
     "crypto-js": "^4.1.1",
     "cryptr": "^6.3.0",
     "debug": "^4.3.2",
+    "dicom-parser": "^1.8.21",
     "dotenv": "^8.6.0",
     "ejs": "^3.1.6",
     "events": "^3.3.0",

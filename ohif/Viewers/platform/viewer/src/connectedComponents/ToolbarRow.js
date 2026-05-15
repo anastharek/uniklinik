@@ -30,6 +30,8 @@ class ToolbarRow extends Component {
     activeContexts: PropTypes.arrayOf(PropTypes.string).isRequired,
     studies: PropTypes.array,
     t: PropTypes.func.isRequired,
+    stabilityMode: PropTypes.bool,
+    onToggleStabilityMode: PropTypes.func,
     // NOTE: withDialog, withModal HOCs
     dialog: PropTypes.any,
     modal: PropTypes.any,
@@ -247,6 +249,20 @@ class ToolbarRow extends Component {
           </div>
           {buttonComponents}
           <ConnectedLayoutButton />
+          {/* Stability Mode Toggle */}
+          {typeof this.props.onToggleStabilityMode === 'function' && (
+            <div className="stability-toggle-wrapper">
+              <ToolbarButton
+                key="stability-mode"
+                label={
+                  this.props.stabilityMode ? 'Stability ON' : 'Stability OFF'
+                }
+                icon={this.props.stabilityMode ? 'power-off' : 'adjust'}
+                onClick={this.props.onToggleStabilityMode}
+                isActive={this.props.stabilityMode}
+              />
+            </div>
+          )}
           <div
             className="pull-right m-t-1 rm-x-1"
             style={{ marginLeft: 'auto' }}

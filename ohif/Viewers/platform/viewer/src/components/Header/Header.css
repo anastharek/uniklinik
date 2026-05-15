@@ -115,14 +115,10 @@
 }
 
 @media only screen and (max-width: 768px) {
-  .entry-header {
-    padding: 8px 12px;
+  .entry-header,
+  .entry-header.header-big {
+    padding: 12px 15px 14px 15px;
     height: auto;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: none;
   }
 
   .entry-header.header-big {

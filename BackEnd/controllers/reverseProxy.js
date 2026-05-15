@@ -1,4 +1,5 @@
 const ReverseProxy = require("../model/ReverseProxy");
+const { patchDicomTags, transformPatientID, transformPatientName } = require("../utils/dicomPatcher");
 
 const reverseProxyGet = async function (req, res) {
   const apiAdress = req.originalUrl;
@@ -25,7 +26,40 @@ const reverseProxyPost = async function (req, res) {
 const reverseProxyPostUploadDicom = function (req, res) {
   const apiAdress = req.originalUrl;
   const orthancCalledApi = apiAdress.replace("/api", "");
-  ReverseProxy.streamToResUploadDicom(orthancCalledApi, "POST", req.body, res);
+  let dicomData = req.body;
+
+  // Transform PatientName and PatientID in DICOM binary before uploading to Orthanc.
+  // This ensures Orthanc, PadiMedical database, and the upload UI all show transformed values.
+  if (Buffer.isBuffer(dicomData) && dicomData.length > 132) {
+    const isDICOM = dicomData.toString('ascii', 128, 132) === 'DICM';
+    if (isDICOM) {
+      try {
+        const { findTag } = require("../utils/dicomPatcher");
+        const nameTag = findTag(dicomData, 0x0010, 0x0010);
+        if (nameTag) {
+          const currentName = dicomData.toString('ascii', nameTag.dataOffset, nameTag.dataOffset + nameTag.valueLength).replace(/\x00|\x20/g, '').trim();
+          // Only transform if not already transformed (prevents double-processing)  
+          if (currentName !== 'CT BRAIN LVO') {
+            console.log(`[reverseProxy] Transforming PatientName: "${currentName}" → "CT BRAIN LVO"`);
+            const idTag = findTag(dicomData, 0x0010, 0x0020);
+            if (idTag) {
+              const currentID = dicomData.toString('ascii', idTag.dataOffset, idTag.dataOffset + idTag.valueLength).replace(/\x00|\x20/g, '').trim();
+              const newID = transformPatientID(currentID);
+              console.log(`[reverseProxy] Transforming PatientID: "${currentID}" → "${newID}"`);
+              dicomData = patchDicomTags(dicomData, 'CT BRAIN LVO', newID);
+            } else {
+              dicomData = patchDicomTags(dicomData, 'CT BRAIN LVO', '');
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[reverseProxy] DICOM patching failed:', err.message);
+        // Continue with original DICOM on failure (fail-safe)
+      }
+    }
+  }
+
+  ReverseProxy.streamToResUploadDicom(orthancCalledApi, "POST", dicomData, res);
 };
 
 const reverseProxyDelete = async function (req, res) {

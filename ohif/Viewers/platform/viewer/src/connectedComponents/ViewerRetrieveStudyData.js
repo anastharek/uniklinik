@@ -199,7 +199,7 @@ const _updateStudyDisplaySets = (study, studyMetadata) => {
 const _thinStudyData = study => {
   return {
     StudyInstanceUID: study.StudyInstanceUID,
-    series: study.series.map(item => ({
+    series: (study.series || []).map(item => ({
       SeriesInstanceUID: item.SeriesInstanceUID,
     })),
   };

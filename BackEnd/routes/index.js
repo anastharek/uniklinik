@@ -118,9 +118,18 @@ const AiAutorouter=require('../controllers/AiAutorouter');
 const ReportTemplate=require('../controllers/ReportTemplate');
 const PatientController=require('../controllers/patientController');
 const PadilabelController=require('../controllers/PadilabelController');
+const { downloadSeriesZip } = require('../controllers/seriesZipDownload');
 const { getGlobalPreferences, saveGlobalPreferences } = require('../controllers/preferences');
 router.get("/preferences/global", userAuthMidelware, getGlobalPreferences);
 router.post("/preferences/global", userAuthMidelware, saveGlobalPreferences);
+
+// ── Series DICOM ZIP download (selected series only) ──
+router.get(
+  "/dicom/studies/:studyInstanceUID/series/:seriesInstanceUID/download-zip",
+  userAuthMidelware,
+  downloadSeriesZip
+);
+
 router.get("/modalities", userAuthMidelware, reverseProxyGet);
 router.post(
   "/modalities/*/store",
