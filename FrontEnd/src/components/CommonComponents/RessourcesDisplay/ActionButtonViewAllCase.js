@@ -117,6 +117,20 @@ class ActionBoutonView extends Component {
               </button>
             </Link>}
 
+            {this.props.role.view_weasis && <a
+              style={{ textDecoration: "none" }}
+              href={this.props.weasis}
+              target="_blank"
+            >
+              <button
+                className="dropdown-item "
+                type="button"
+                hidden={this.props.hiddenDelete}
+              >
+                WEASIS
+              </button>
+            </a>}
+
             {this.props.role.view_osimis && <Link
               style={{ textDecoration: "none" }}
               to={{

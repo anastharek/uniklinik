@@ -117,6 +117,7 @@ export default class RoleForm extends Component {
     patient_management:false,
     view_radiant:false,
     view_horos:false,
+    view_weasis:false,
     view_osimis:false,
     view_aiViewer:false,
     download_report:false,
@@ -256,6 +257,7 @@ export default class RoleForm extends Component {
         patient_management:this.props.data.patient_management,
         view_radiant:this.props.data.view_radiant,
         view_horos:this.props.data.view_horos,
+        view_weasis:this.props.data.view_weasis,
         view_osimis:this.props.data.view_osimis,
         view_aiViewer:this.props.data.view_aiViewer,
         download_report:this.props.data.download_report,
@@ -2102,6 +2104,22 @@ export default class RoleForm extends Component {
               onChange={() =>
                 this.setState((prevState) => ({
                   view_horos: !prevState.view_horos,
+                }))
+              }
+            />
+          </Col>
+        </Row>
+
+        <Row className="mt-3">
+          <Col sm={5}>
+            <h5>View Weasis</h5>
+          </Col>
+          <Col sm={7}>
+            <Toggle
+              checked={this.state.view_weasis}
+              onChange={() =>
+                this.setState((prevState) => ({
+                  view_weasis: !prevState.view_weasis,
                 }))
               }
             />

@@ -1040,6 +1040,7 @@ const CreateReport = () => {
                   id +
                   "/archive"
                 }
+                weasis={"weasis://?studyUID=" + StudyInstanceUID}
                 downloadzip={
                   "https://strokesvr.padimedical.com/studies/" + id + "/archive"
                 }

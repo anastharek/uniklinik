@@ -143,6 +143,7 @@ class Role{
     patient_management,
     view_radiant,
     view_horos,
+    view_weasis,
     view_osimis,
     view_aiViewer,
     download_report,
@@ -275,6 +276,7 @@ class Role{
       patient_management,
       view_radiant,
       view_horos,
+      view_weasis,
       view_osimis,
       view_aiViewer,
       download_report,
@@ -417,6 +419,7 @@ class Role{
     patient_management,
     view_radiant,
     view_horos,
+    view_weasis,
     view_osimis,
     view_aiViewer,
     download_report,
@@ -548,6 +551,7 @@ class Role{
     role.patient_management=patient_management;
     role.view_radiant=view_radiant;
     role.view_horos=view_horos;
+    role.view_weasis=view_weasis;
     role.view_osimis=view_osimis;
     role.view_aiViewer=view_aiViewer;
     role.download_report=download_report;

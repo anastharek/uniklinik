@@ -129,6 +129,7 @@ module.exports = (sequelize, DataTypes) => {
       patient_management:DataTypes.BOOLEAN,
       view_radiant:DataTypes.BOOLEAN,
       view_horos:DataTypes.BOOLEAN,
+      view_weasis:DataTypes.BOOLEAN,
       view_osimis:DataTypes.BOOLEAN,
       view_aiViewer:DataTypes.BOOLEAN,
       download_report:DataTypes.BOOLEAN,

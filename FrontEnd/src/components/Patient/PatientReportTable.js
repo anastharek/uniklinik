@@ -66,6 +66,9 @@ export default function AdminCaseListTable({ tableData=[]  }) {
                      row.values.study_id +
                      "/archive"
                    }
+                   weasis={
+                     "weasis://?studyUID=" + row.values.StudyInstanceUID
+                   }
                    downloadzip={
                      "https://strokesvr.padimedical.com/studies/" +
                      row.values.study_id +

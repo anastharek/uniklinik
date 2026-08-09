@@ -251,6 +251,10 @@ const PatientStudyTable = ({
                 row.original.ID +
                 "/archive"
               }
+              weasis={
+                "weasis://?studyUID=" +
+                row.original.MainDicomTags.StudyInstanceUID
+              }
               downloadzip={
                 "https://strokesvr.padimedical.com/studies/" +
                 row.original.ID +

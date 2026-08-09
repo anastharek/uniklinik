@@ -186,6 +186,7 @@ const login = async function (req, res) {
       patient_management: infosUser.patient_management,
       view_radiant: infosUser.view_radiant,
       view_horos: infosUser.view_horos,
+      view_weasis: infosUser.view_weasis,
       view_osimis: infosUser.view_osimis,
       view_aiViewer: infosUser.view_aiViewer,
       download_report: infosUser.download_report,
