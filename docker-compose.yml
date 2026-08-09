@@ -114,6 +114,7 @@ services:
             ORTHANC__HTTPS_VERIFY_PEERS: "true"
             ORTHANC__ORTHANC_EXPLORER_ENABLED: "true"
             ORTHANC__MAXIMUM_STORAGE_SIZE: "2000000" #Change storage size (was 100GB — caused data loss during RADIOSERVER flood)
+            ORTHANC__MAXIMUM_STORAGE_CACHE_SIZE: "4096" #RAM cache for recently read/written files (default 128MB → 4GB so preloaded frames stay hot)
             ORTHANC__KEEP_ALIVE: "true"
             ORTHANC__TCP_NO_DELAY: "true"
             ORTHANC__STORAGE_ACCESS_ON_FIND: "Never"
