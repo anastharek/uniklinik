@@ -86,7 +86,7 @@
     ]
   },
   "devDependencies": {
-    "node-sass": "^6.0.1"
+    "sass": "^1.69.5"
   },
   "resolutions": {
     "@react-pdf/font": "2.2.0",

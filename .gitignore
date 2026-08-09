@@ -37,3 +37,10 @@ migrations/
 
 # Docker compose overrides (local only)
 docker-compose.override.yml
+
+# Local data / artifacts (never commit)
+ORTHANC/
+cron-fix/
+nginx/
+*.zip
+*.bak

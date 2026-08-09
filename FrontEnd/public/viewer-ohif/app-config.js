@@ -118,12 +118,8 @@ window.config = {
     },
   ],
   cornerstoneExtensionConfig: {},
-  // Following property limits number of simultaneous series metadata requests.
-  // For http/1.x-only servers, set this to 5 or less to improve
-  //  on first meaningful display in viewer
-  // If the server is particularly slow to respond to series metadata
-  //  requests as it extracts the metadata from raw files everytime,
-  //  try setting this to even lower value
-  // Leave it undefined for no limit, sutiable for HTTP/2 enabled servers
-  // maxConcurrentMetadataRequests: 5,
+  // Limit concurrent metadata requests to reduce Orthanc load
+  maxConcurrentMetadataRequests: 3,
+  // Limit prefetch to 15 images (was 100) — reduces DICOMweb traffic
+  maxNumPrefetchRequests: 15,
 };

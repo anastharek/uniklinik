@@ -1,147 +1,148 @@
 -- =============================================================================
--- Orthanc Lua Script — Automatic PatientName & PatientID Transformation
--- Path: /etc/orthanc/scripts/modify.lua
+-- Orthanc Lua Script — PUTRACNS Stroke/Neurovascular PACS
 -- =============================================================================
--- Trigger: OnStoredInstance — runs on EVERY DICOM upload
--- Guard:   Skip if origin=Lua OR PatientName already == "CT BRAIN LVO"
+-- ACCEPTANCE RULES:
+-- CT  → Brain / Head / Stroke keywords
+-- MR  → PUTRA/STROKE protocol OR BodyPart = BRAIN
+-- XA  → Brain/Head angio
+-- All other modalities → DELETED
+-- Non-image SOP classes → DELETED
+--
+-- IncomingDicomInstanceFilter: rejects BEFORE storage (saves CPU/disk)
+-- OnStoredInstance: tags accepted instances only
 -- =============================================================================
 
--- ---------------------------------------------------------------------------
--- Helper: remove ALL non-numeric characters from a string
--- ---------------------------------------------------------------------------
-function ExtractDigits(str)
-   if str == nil then return '' end
-   return (str:gsub('%D', ''))
-end
+local SCRIPT_START_TIME = os.time()
+local STARTUP_GRACE_SECONDS = 300
 
--- ---------------------------------------------------------------------------
--- Helper: format integer as "09" + 6-digit zero-padded string
---   e.g. FormatPatientID(168)  → "090000168"
---        FormatPatientID(206)  → "090000206"
---        FormatPatientID(0)    → "090000000"
--- ---------------------------------------------------------------------------
-function FormatPatientID(num)
-   -- "09" prefix + 7-digit zero-padded number → 9-digit PatientID
-   -- e.g. 162 → "090000162", 206 → "090000206", 168 → "090000168"
-   return '09' .. string.format('%07d', num)
-end
-
--- ---------------------------------------------------------------------------
--- Helper: print timestamped log line to Orthanc logs
--- ---------------------------------------------------------------------------
 function Log(msg)
    print('[MODIFY.LUA] ' .. os.date('%Y-%m-%d %H:%M:%S') .. ' | ' .. msg)
 end
 
--- =========================================================================
--- OnStoredInstance — fired for every DICOM instance stored in Orthanc
--- =========================================================================
-function OnStoredInstance(instanceId, tags, metadata, origin)
-   -- GUARD 1: Skip if this instance was created by the Lua engine itself
-   --          (prevents infinite modification loop)
-   if origin['RequestOrigin'] == 'Lua' then
-      Log('Skipping instance ' .. instanceId .. ' (origin = Lua)')
-      return
-   end
+local function upper(tag)
+   if tag == nil then return '' end
+   return string.upper(tostring(tag)):gsub('^%s+', ''):gsub('%s+$', '')
+end
 
-   -- GUARD 2: Skip if PatientName already equals the target name
-   --          (double-safety against accidental re-processing)
-   local currentPatientName = tags['PatientName'] or ''
-   local currentPatientID   = tags['PatientID']   or ''
+-- =============================================================================
+-- NON-IMAGE SOP CLASSES
+-- =============================================================================
+local NON_IMAGE_SOP_CLASSES = {
+   ['1.2.840.10008.5.1.4.1.1.11.1']   = 'GSPS',
+   ['1.2.840.10008.5.1.4.1.1.11.2']   = 'ColorPS',
+   ['1.2.840.10008.5.1.4.1.1.11.3']   = 'PseudoColorPS',
+   ['1.2.840.10008.5.1.4.1.1.11.4']   = 'BlendingPS',
+   ['1.2.840.10008.5.1.4.1.1.11.5']   = 'XA-XRFPS',
+   ['1.2.840.10008.5.1.4.1.1.66']     = 'RawData',
+   ['1.2.840.10008.5.1.4.1.1.66.1']   = 'RawData',
+   ['1.2.840.10008.5.1.4.1.1.88.11']  = 'SR',
+   ['1.2.840.10008.5.1.4.1.1.88.22']  = 'SR',
+   ['1.2.840.10008.5.1.4.1.1.88.33']  = 'SR',
+   ['1.2.840.10008.5.1.4.1.1.88.34']  = 'SR',
+   ['1.2.840.10008.5.1.4.1.1.88.40']  = 'SR',
+   ['1.2.840.10008.5.1.4.1.1.88.50']  = 'SR',
+   ['1.2.840.10008.5.1.4.1.1.88.59']  = 'SR',
+   ['1.2.840.10008.5.1.4.1.1.88.65']  = 'SR',
+   ['1.2.840.10008.5.1.4.1.1.88.67']  = 'SR',
+   ['1.2.840.10008.5.1.4.1.1.481.2']  = 'RTDose',
+   ['1.2.840.10008.5.1.4.1.1.481.3']  = 'RTStruct',
+   ['1.2.840.10008.5.1.4.1.1.481.5']  = 'RTPlan',
+   ['1.2.840.10008.5.1.4.1.1.481.9']  = 'RTTreatRec',
+   ['1.2.840.10008.5.1.4.1.1.104.1']  = 'EncapsulatedPDF',
+   ['1.2.840.10008.5.1.4.1.1.104.2']  = 'EncapsulatedCDA',
+}
 
-   Log('Instance: ' .. instanceId)
-   Log('  Original PatientName : "' .. currentPatientName .. '"')
-   Log('  Original PatientID   : "' .. currentPatientID   .. '"')
+-- =============================================================================
+-- IncomingDicomInstanceFilter — reject BEFORE storage (saves CPU/disk)
+-- =============================================================================
+function IncomingDicomInstanceFilter(dicom, origin, info)
+   -- Only filter incoming DICOM from remote senders (not internal/Lua operations)
+   if origin == 'Lua' then return dicom end
 
-   if currentPatientName == 'CT BRAIN LVO' then
-      Log('  ↳ PatientName already transformed — skipping')
-      return
-   end
-
-   -- --------------------------------------------------------------------
-   -- PATIENT ID TRANSFORMATION
-   -- --------------------------------------------------------------------
-   -- Step 1: Remove ALL non-numeric characters
-   local digits = ExtractDigits(currentPatientID)
-   Log('  Extracted digits     : "' .. digits .. '"')
-
-   -- Step 2: Convert to integer (empty string defaults to 0)
-   local num = tonumber(digits)
-   if num == nil then
-      num = 0
-      Log('  ⚠ No digits found, defaulting to 0')
-   end
-   Log('  Integer value        : ' .. num)
-
-   -- Step 3: Add 161
-   local newNum = num + 161
-   Log('  After +161           : ' .. newNum)
-
-   -- Step 4: Format as "09" + 6-digit zero-padded string
-   local newPatientID = FormatPatientID(newNum)
-   Log('  Final PatientID      : "' .. newPatientID .. '"')
-
-   -- --------------------------------------------------------------------
-   -- BUILD MODIFY REQUEST (manual JSON — avoids DumpJson number coercion)
-   -- DumpJson strips leading zeros from string values, so we construct the
-   -- JSON payload manually to guarantee PatientID stays a quoted string.
-   -- --------------------------------------------------------------------
-   local sopUID = tags['SOPInstanceUID']
-
-   local modifyJson = '{"Replace":{' ..
-      '"InstitutionName":"PUTRA CNS",' ..
-      '"PatientName":"CT BRAIN LVO",' ..
-      '"PatientID":"' .. newPatientID .. '",' ..
-      '"SOPInstanceUID":"' .. sopUID .. '"' ..
-      '},"Remove":["OperatorsName"],"Force":true}'
-
-   -- --------------------------------------------------------------------
-   -- EXECUTE MODIFY (creates modified DICOM in memory)
-   -- --------------------------------------------------------------------
-   Log('  ↳ Sending modify request...')
-
-   local ok, modifiedDicom = pcall(function()
-      return RestApiPost('/instances/' .. instanceId .. '/modify', modifyJson)
+   -- Parse minimal tags from the DICOM bytes (DicomToJson + ParseJson)
+   local ok, parsed = pcall(function()
+      return ParseJson(DicomToJson(dicom))
    end)
-
-   if not ok then
-      Log('  ✗ Modify FAILED: ' .. tostring(modifiedDicom))
-      return
+   if not ok or parsed == nil then
+      -- Can't parse — let Orthanc handle it, OnStoredInstance will catch it
+      return dicom
    end
 
-   -- --------------------------------------------------------------------
-   -- RE-UPLOAD MODIFIED DICOM (overwrites original via Force + OverwriteInstances)
-   -- --------------------------------------------------------------------
-   local ok2, uploadResponse = pcall(function()
-      return ParseJson(RestApiPost('/instances', modifiedDicom))
-   end)
+   local sopClassUid = parsed['SOPClassUID'] or ''
 
-   if not ok2 then
-      Log('  ✗ Upload FAILED: ' .. tostring(uploadResponse))
-      return
+   -- Non-image SOP → reject immediately
+   local nonImageType = NON_IMAGE_SOP_CLASSES[sopClassUid]
+   if nonImageType then
+      Log('✗ PRE-STORAGE REJECT: Non-image SOP — ' .. nonImageType)
+      return nil  -- nil = reject, never stored
    end
 
-   -- --------------------------------------------------------------------
-   -- VERIFICATION
-   -- --------------------------------------------------------------------
-   if uploadResponse['Status'] == 'AlreadyStored' then
-      Log('  ⚠ OverwriteInstances may NOT be enabled. Check orthanc.json.')
-   elseif uploadResponse['Status'] == 'Success' then
-      Log('  ✓ SUCCESS — new PatientID = ' .. newPatientID)
-      if uploadResponse['ID'] ~= instanceId then
-         Log('  ↳ Overwritten instance (ID preserved: ' .. instanceId .. ')')
+   local modality = upper(parsed['Modality'] or '')
+   local bodyPart = upper(parsed['BodyPartExamined'] or '')
+   local studyDesc = upper(parsed['StudyDescription'] or '')
+   local seriesDesc = upper(parsed['SeriesDescription'] or '')
+   local protocol = upper(parsed['ProtocolName'] or '')
+   local reqProc = upper(parsed['RequestedProcedureDescription'] or '')
+   local combined = bodyPart .. ' ' .. studyDesc .. ' ' .. seriesDesc .. ' ' .. protocol .. ' ' .. reqProc
+
+   local reject = nil
+
+   if modality == 'CT' then
+      if combined:find('BRAIN') or combined:find('HEAD') or combined:find('STROKE') then
+         if combined:find('PNS') then reject = 'CT: PNS' end
+      else
+         reject = 'CT: no BRAIN/HEAD/STROKE'
       end
-   else
-      Log('  ↳ Status: ' .. (uploadResponse['Status'] or 'UNKNOWN'))
+
+   elseif modality == 'MR' then
+      local isPutraStroke = combined:find('PUTRA') or combined:find('STROKE')
+      local isBrain = bodyPart == 'BRAIN'
+      if not (isPutraStroke or isBrain) then
+         reject = 'MR: not PUTRA/STROKE and not BRAIN'
+      end
+
+   elseif modality == 'XA' then
+      if not (combined:find('BRAIN') or combined:find('HEAD')) then
+         reject = 'XA: not brain/head angio'
+      end
+
+   elseif modality ~= '' then
+      reject = 'Modality=' .. modality .. ' (not CT/MR/XA)'
    end
+
+   if reject then
+      Log('✗ PRE-STORAGE REJECT: ' .. reject)
+      return nil  -- nil = reject, never touches disk
+   end
+
+   -- Accepted — let Orthanc store it
+   Log('✓ Pre-accepted: ' .. modality)
+   return dicom
 end
 
--- =========================================================================
--- OnStableStudy — reconstruct patient/study/series indexes after storage
--- =========================================================================
-function OnStableStudy(studyId, tags, metadata)
-   Log('Reconstructing study ' .. studyId .. ' (' ..
-       (tags['PatientName'] or '?') .. ')')
-   RestApiPost('/studies/' .. studyId .. '/reconstruct', '')
-   Log('  ✓ Study ' .. studyId .. ' index rebuilt')
+-- =============================================================================
+-- OnStoredInstance — tag accepted instances with InstitutionName
+-- =============================================================================
+function OnStoredInstance(instanceId, tags, metadata, origin)
+   if origin['RequestOrigin'] == 'Lua' then return end
+
+   -- Tag with InstitutionName (metadata-only, no decode)
+   pcall(function()
+      ModifyInstance(instanceId,
+         { ['InstitutionName'] = 'PUTRA CNS' },
+         { 'OperatorsName' },
+         false
+      )
+   end)
 end
+
+-- =============================================================================
+-- OnStableStudy — reconstruct (deferred during startup grace period)
+-- =============================================================================
+-- OnStableStudy: DISABLED — auto-reconstruct was causing OOM after restarts
+-- when all studies would trigger simultaneous rebuilds
+-- function OnStableStudy(studyId, tags, metadata)
+--    local elapsed = os.time() - SCRIPT_START_TIME
+--    if elapsed < STARTUP_GRACE_SECONDS then return end
+--    pcall(function() RestApiPost('/studies/' .. studyId .. '/reconstruct', '') end)
+-- end

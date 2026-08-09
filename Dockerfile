@@ -1,70 +1,76 @@
-# ---- React build ----
-FROM node:16.20.0 AS react
-WORKDIR /app
-COPY ./FrontEnd .
+# =============================================================================
+# PUTRACNS — Multi-stage Docker build (optimized)
+# =============================================================================
+# Requires: DOCKER_BUILDKIT=1 (enabled by default in Docker 23+)
+#
+# Build:  docker compose build --no-cache   (full rebuild)
+#         docker compose build               (incremental, uses cache)
+# =============================================================================
 
+# ─── Shared base: Yarn config ────────────────────────────────────────────
+FROM node:16.20.0 AS yarn-base
 RUN yarn config set registry https://registry.npmjs.org \
  && yarn config set network-timeout 600000 \
  && yarn config set prefer-offline true \
  && yarn config set progress false
 
-RUN yarn install --ignore-engines
 
-RUN node -e "try{require.resolve('node-sass');process.exit(0)}catch(e){process.exit(1)}" \
- || echo 'node-sass not in deps, skipping rebuild'
+# ─── React Frontend build ────────────────────────────────────────────────
+FROM yarn-base AS react
+WORKDIR /app
 
-RUN npm rebuild node-sass || true
-RUN sed -i 's/NODE_OPTIONS=--openssl-legacy-provider[[:space:]]*//g' package.json
+# Layer 1: Dependencies (cached unless package.json/yarn.lock change)
+COPY ./FrontEnd/package.json ./FrontEnd/yarn.lock* ./
+RUN --mount=type=cache,target=/root/.yarn \
+    yarn install --ignore-engines
+
+# Layer 2: Source + build (only re-runs on source changes)
+COPY ./FrontEnd .
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV GENERATE_SOURCEMAP=false
 RUN npm run build
 
 
-# ---- OHIF build ----
-FROM node:16.20.0 AS ohif
+# ─── OHIF Viewer build ──────────────────────────────────────────────────
+FROM yarn-base AS ohif
 WORKDIR /ohif/Viewers
 COPY ./ohif/Viewers .
-
-RUN yarn config set registry https://registry.npmjs.org \
- && yarn config set network-timeout 600000 \
- && yarn config set prefer-offline true \
- && yarn config set progress false
-
-RUN yarn install --network-timeout 600000
-
-ENV NODE_OPTIONS=--max-old-space-size=3072
-RUN QUICK_BUILD=true PUBLIC_URL=/viewer-ohif/ yarn run build
+RUN yarn install --network-timeout 600000 --frozen-lockfile \
+ && npx lerna bootstrap \
+ && PUBLIC_URL=/viewer-ohif/ NODE_OPTIONS=--max-old-space-size=4096 yarn run build
 
 
-# ---- Stone assets ----
+# ─── Stone Web Viewer assets ─────────────────────────────────────────────
 FROM alpine:3.20 AS stone
 RUN apk --no-cache add unzip
-
 WORKDIR /tmp
 COPY ["stone/wasm-binaries.zip", "."]
-
-RUN mkdir -p /stone \
- && unzip wasm-binaries.zip -d /stone
+RUN mkdir -p /stone && unzip -q wasm-binaries.zip -d /stone
 
 
-# ---- Final image ----
-FROM node:18.17 AS final
+# ─── Final runtime image ─────────────────────────────────────────────────
+FROM node:20 AS final
 WORKDIR /OrthancToolsJs
-RUN mkdir -p build
 
 RUN yarn config set registry https://registry.npmjs.org \
  && yarn config set network-timeout 600000 \
  && yarn config set prefer-offline true \
  && yarn config set progress false
 
+# Layer 1: Production deps (cached unless package.json changes)
 COPY ./BackEnd/package.json ./BackEnd/yarn.lock* ./
-RUN yarn install --production --non-interactive
+RUN --mount=type=cache,target=/root/.yarn \
+    yarn install --production --non-interactive
 
+# Layer 2: Application code
 COPY ./BackEnd .
 
-COPY --from=react /app/build ./build/
-COPY --from=ohif /ohif/Viewers/platform/viewer/dist ./build/viewer-ohif/
-COPY --from=stone /stone/wasm-binaries/StoneWebViewer ./build/viewer-stone/
-COPY --from=react /app/build/viewer-ohif/app-config.js ./build/viewer-ohif/
-#COPY --from=react /app/build/viewer-stone/configuration.json ./build/viewer-stone/
+# Gather frontend artifacts from build stages
+RUN mkdir -p build
+COPY --from=react    /app/build                              ./build/
+COPY --from=ohif     /ohif/Viewers/platform/viewer/dist      ./build/viewer-ohif/
+COPY --from=stone    /stone/wasm-binaries/StoneWebViewer      ./build/viewer-stone/
+COPY --from=react    /app/build/viewer-ohif/app-config.js     ./build/viewer-ohif/
 
 EXPOSE 4000
 

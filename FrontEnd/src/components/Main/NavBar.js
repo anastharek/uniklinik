@@ -319,7 +319,7 @@ export default class NavBar extends Component {
                 onClick={this.selectTabHandler}
                 name="dashboard"
                 to="/dashboard"
-                hidden={this.props.roles.name=='guest'}
+                hidden={this.props.roles.name=='guest' || !this.props.roles.view_my_dashboard}
               >
                 Dashboard
               </Link>

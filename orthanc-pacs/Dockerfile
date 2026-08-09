@@ -1,3 +1,3 @@
-FROM orthancteam/orthanc:25.12.3-full
+FROM orthancteam/orthanc:26.7.0-full
 
 COPY modify.lua /etc/orthanc/scripts/modify.lua

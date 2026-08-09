@@ -1,0 +1,44 @@
+# Docker context — keep these OUT of the build context
+# They slow down COPY steps and eat RAM
+
+node_modules/
+.yarn/cache
+.pnp.*
+
+# Build output (shouldn't be in context anyway)
+build/
+dist/
+ohif/Viewers/platform/viewer/dist/
+
+# Docker / data — HUGE, never needed in build
+data/
+ORTHANC/
+orthanc3/
+
+# Git
+.git/
+.gitignore
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# PostgreSQL data (mounted volume, not build context)
+POSTGRES/
+
+# Docker overrides
+docker-compose.override.yml
