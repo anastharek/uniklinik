@@ -174,11 +174,18 @@ function pump() {
     job.status = "running";
     job.startedAt = new Date().toISOString();
     // Fire and forget; pump() is called again when it settles
-    runJob(job).finally(() => {
-      activeCount -= 1;
-      updateQueuePositions();
-      pump();
-    });
+    runJob(job)
+      .catch((err) => {
+        job.status = "error";
+        job.phase = "error";
+        job.error = err.message;
+        job.finishedAt = new Date().toISOString();
+      })
+      .finally(() => {
+        activeCount -= 1;
+        updateQueuePositions();
+        pump();
+      });
   }
 }
 
