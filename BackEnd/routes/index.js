@@ -236,8 +236,14 @@ router.get("/studies/*", [userAuthMidelware], reverseProxyGet);
 // Preload Osimis viewer data (warm Orthanc caches) with progress tracking
 const {
   startPreload,
+  startPreloadMany,
   getPreloadStatus,
+  getActivePreloads,
+  getCachedStatus,
 } = require("../controllers/preload");
+router.post("/preload", [userAuthMidelware], startPreloadMany);
+router.get("/preload/active", [userAuthMidelware], getActivePreloads);
+router.get("/preload/cached", [userAuthMidelware], getCachedStatus);
 router.post("/preload/:studyId", [userAuthMidelware], startPreload);
 router.get("/preload/:studyId", [userAuthMidelware], getPreloadStatus);
 

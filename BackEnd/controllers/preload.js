@@ -14,6 +14,26 @@ const startPreload = async function (req, res) {
     totalInstances: job.totalInstances,
     doneInstances: job.doneInstances,
     phase: job.phase,
+    queuePosition: job.queuePosition,
+    fromCache: job.fromCache || false,
+  });
+};
+
+const startPreloadMany = async function (req, res) {
+  const { studyIds } = req.body || {};
+  if (!Array.isArray(studyIds) || !studyIds.length) {
+    return res.status(400).json({ message: "studyIds array is required" });
+  }
+  const jobs = await preloadService.startPreloadMany(studyIds);
+  res.json({
+    started: jobs.length,
+    jobs: jobs.map((job) => ({
+      status: job.status,
+      studyId: job.studyId,
+      phase: job.phase,
+      queuePosition: job.queuePosition,
+      fromCache: job.fromCache || false,
+    })),
   });
 };
 
@@ -31,10 +51,48 @@ const getPreloadStatus = async function (req, res) {
     totalInstances: job.totalInstances,
     doneInstances: job.doneInstances,
     phase: job.phase,
+    queuePosition: job.queuePosition,
     error: job.error,
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
+    fromCache: job.fromCache || false,
   });
 };
 
-module.exports = { startPreload, getPreloadStatus };
+/** GET /api/preload/active - all queued/running jobs (global progress widget) */
+const getActivePreloads = async function (req, res) {
+  const list = preloadService.getActiveJobs();
+  res.json(
+    list.map((job) => ({
+      status: job.status,
+      studyId: job.studyId,
+      totalSeries: job.totalSeries,
+      doneSeries: job.doneSeries,
+      totalInstances: job.totalInstances,
+      doneInstances: job.doneInstances,
+      phase: job.phase,
+      queuePosition: job.queuePosition,
+      error: job.error,
+      startedAt: job.startedAt,
+    }))
+  );
+};
+
+/** GET /api/preload/cached?studyIds=a,b,c - which studies are fresh-cached (2 weeks) */
+const getCachedStatus = async function (req, res) {
+  const raw = req.query.studyIds || "";
+  const studyIds = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  if (!studyIds.length) {
+    return res.status(400).json({ message: "studyIds query param is required" });
+  }
+  const status = await preloadService.getCachedStatus(studyIds);
+  res.json(status);
+};
+
+module.exports = {
+  startPreload,
+  startPreloadMany,
+  getPreloadStatus,
+  getActivePreloads,
+  getCachedStatus,
+};

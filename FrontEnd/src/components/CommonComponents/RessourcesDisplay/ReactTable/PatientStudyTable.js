@@ -10,6 +10,7 @@ import { FormCheck, Dropdown, ButtonGroup } from "react-bootstrap";
 import SendAetDropdown from "../../../Export/SendAetDropdown";
 import apis from "../../../../services/apis";
 import preloadApi from "../../../../services/preload";
+import preloadStore from "../../../../services/preloadStore";
 import { toast } from "react-toastify";
 
 const PatientStudyTable = ({
@@ -34,7 +35,45 @@ const PatientStudyTable = ({
   });
   const [aets, setAets] = useState([]);
   const [preloaded, setPreloaded] = useState({});
+  const [preloadProgress, setPreloadProgress] = useState({}); // studyId -> {pct, series, done}
+  const [preloadAllLoading, setPreloadAllLoading] = useState(false);
   const preloadRefs = useRef({});
+
+  // Live progress from the global preload store (survives page navigation)
+  useEffect(() => {
+    const unsub = preloadStore.subscribe((jobs) => {
+      const prog = {};
+      Object.values(jobs).forEach((job) => {
+        const pct = job.totalSeries > 0 ? Math.min(100, Math.round((job.doneSeries / job.totalSeries) * 100)) : 0;
+        prog[job.studyId] = {
+          pct,
+          series: `${job.doneSeries}/${job.totalSeries}`,
+          status: job.status,
+        };
+      });
+      setPreloadProgress(prog);
+    });
+    return unsub;
+  }, []);
+
+  // On mount: restore "Cached" state from DB (survives logout/login, 2-week freshness)
+  useEffect(() => {
+    const ids = (studies || []).map((s) => s.ID).filter(Boolean);
+    if (!ids.length) return;
+    preloadApi
+      .cached(ids)
+      .then((map) => {
+        const fresh = Object.keys(map).filter((id) => map[id].cached);
+        if (fresh.length) {
+          setPreloaded((prev) => {
+            const next = { ...prev };
+            fresh.forEach((id) => (next[id] = "done"));
+            return next;
+          });
+        }
+      })
+      .catch(() => {});
+  }, [studies]);
 
   useEffect(() => {
     apis.aets.getAets().then(setAets).catch(console.log);
@@ -270,7 +309,36 @@ const PatientStudyTable = ({
       },
       {
         id: "preload-osimis",
-        Header: "Preload",
+        Header: ({ page }) => (
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span>Preload</span>
+            <button
+              type="button"
+              className="otjs-button otjs-button-blue"
+              style={{ padding: "1px 8px", fontSize: 11, lineHeight: "18px" }}
+              disabled={preloadAllLoading}
+              onClick={() => {
+                const ids = (page || [])
+                  .map(({ original }) => original && original.ID)
+                  .filter(Boolean);
+                if (!ids.length) {
+                  toast.info("No studies on this page");
+                  return;
+                }
+                setPreloadAllLoading(true);
+                preloadStore
+                  .startMany(ids)
+                  .then(() => {
+                    toast.success(`Preload started for ${ids.length} studies`);
+                  })
+                  .catch(() => toast.error("Could not start preload"))
+                  .finally(() => setPreloadAllLoading(false));
+              }}
+            >
+              {preloadAllLoading ? "..." : "All"}
+            </button>
+          </div>
+        ),
         show: roles.preload_osimis,
         sort: false,
         disableSortBy: true,
@@ -280,6 +348,7 @@ const PatientStudyTable = ({
         Cell: ({ row }) => {
           const studyId = row.original.ID;
           const state = preloaded[studyId];
+          const prog = preloadProgress[studyId];
           const osimisLink =
             "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
             studyId;
@@ -290,10 +359,15 @@ const PatientStudyTable = ({
             }
             setPreloaded((prev) => ({ ...prev, [studyId]: "loading" }));
 
-            // 1. Start the server-side preload job (warms Orthanc caches, gives real progress)
-            preloadApi
+            // 1. Start the server-side preload job (queued server-side, real progress)
+            preloadStore
               .start(studyId)
-              .then(() => {
+              .then((job) => {
+                if (job && job.fromCache) {
+                  setPreloaded((prev) => ({ ...prev, [studyId]: "done" }));
+                  toast.success("Already cached (fresh)");
+                  return;
+                }
                 // 2. Also warm the browser cache by loading the viewer app shell in a hidden iframe
                 if (!preloadRefs.current[studyId]) {
                   const iframe = document.createElement("iframe");
@@ -307,58 +381,70 @@ const PatientStudyTable = ({
                   document.body.appendChild(iframe);
                 }
 
-                // 3. Poll the server job for real progress
-                const poll = setInterval(() => {
-                  preloadApi
-                    .status(studyId)
-                    .then((job) => {
-                      if (job.status === "done" || job.status === "error") {
-                        clearInterval(poll);
-                        if (job.status === "done") {
-                          setPreloaded((prev) => ({ ...prev, [studyId]: "done" }));
-                          toast.success(
-                            `Preload complete: ${job.doneSeries}/${job.totalSeries} series cached`
-                          );
-                        } else {
-                          setPreloaded((prev) => ({ ...prev, [studyId]: "error" }));
-                          toast.error(`Preload failed: ${job.error || "unknown error"}`);
-                        }
-                      } else {
-                        setPreloaded((prev) => ({ ...prev, [studyId]: "loading" }));
-                      }
-                    })
-                    .catch(() => {
-                      clearInterval(poll);
+                // 3. Watch the global store for completion of this study
+                const unsub = preloadStore.subscribe((jobs) => {
+                  const jobSnap = jobs[studyId];
+                  if (!jobSnap) return;
+                  if (jobSnap.status === "done" || jobSnap.status === "error") {
+                    unsub();
+                    if (jobSnap.status === "done") {
+                      setPreloaded((prev) => ({ ...prev, [studyId]: "done" }));
+                      toast.success(
+                        `Preload complete: ${jobSnap.doneSeries}/${jobSnap.totalSeries} series cached`
+                      );
+                    } else {
                       setPreloaded((prev) => ({ ...prev, [studyId]: "error" }));
-                      toast.error("Preload status check failed");
-                    });
-                }, 2000);
+                      toast.error(`Preload failed: ${jobSnap.error || "unknown error"}`);
+                    }
+                  }
+                });
               })
               .catch((err) => {
                 setPreloaded((prev) => ({ ...prev, [studyId]: "error" }));
                 toast.error("Could not start preload");
               });
           };
-          const showProgress =
-            state === "loading" && preloaded[studyId] !== "done";
+          const isRunning = state === "loading" && preloaded[studyId] !== "done";
+          const pct = isRunning && prog ? prog.pct : 0;
+          const isQueued = isRunning && prog && prog.status === "queued";
           return (
-            <button
-              type="button"
-              name="preload_osimis"
-              className={
-                state === "done"
-                  ? "otjs-button otjs-button-green"
-                  : "otjs-button otjs-button-blue"
-              }
-              onClick={handlePreload}
-              disabled={state === "loading"}
-            >
-              {state === "loading"
-                ? "Preloading..."
-                : state === "done"
-                ? "Cached ✓"
-                : "Preload"}
-            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3, minWidth: 100 }}>
+              <button
+                type="button"
+                name="preload_osimis"
+                className={
+                  state === "done"
+                    ? "otjs-button otjs-button-green"
+                    : state === "error"
+                    ? "otjs-button"
+                    : "otjs-button otjs-button-blue"
+                }
+                onClick={handlePreload}
+                disabled={state === "loading"}
+              >
+                {state === "loading"
+                  ? isQueued
+                    ? "Queued…"
+                    : `Preloading ${pct}%`
+                  : state === "done"
+                  ? "Cached ✓"
+                  : state === "error"
+                  ? "Retry"
+                  : "Preload"}
+              </button>
+              {isRunning && prog && prog.status === "running" && (
+                <div style={{ height: 5, background: "#eaecf0", borderRadius: 3, overflow: "hidden" }}>
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${pct}%`,
+                      background: "#12b76a",
+                      transition: "width 0.6s ease",
+                    }}
+                  />
+                </div>
+              )}
+            </div>
           );
         },
       },

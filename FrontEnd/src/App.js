@@ -5,6 +5,7 @@ import fetchIntercept from "fetch-intercept";
 
 import NavBar from "./components/Main/NavBar";
 import Authentication from "./components/Authentication";
+import PreloadProgressWidget from "./components/CommonComponents/PreloadProgressWidget";
 
 import { login, logout } from "./actions/login";
 import { connect } from "react-redux";
@@ -121,6 +122,7 @@ class App extends Component {
             ) : (
               <Authentication onLogin={this.login} />
             )}
+            {this.props.username && <PreloadProgressWidget />}
           </Route>
         </Switch>
       </BrowserRouter>
