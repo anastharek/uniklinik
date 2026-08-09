@@ -5,11 +5,7 @@ const Users=require("../model/Users");
 const jwt=require('jsonwebtoken');
 const GenerateSeries=require('../utils/generateAISeries');
 
-
-const generateAiSeries=async()=>{
-    let allConf=await db.AiAutorouter.findAll({
-        raw:true
-    });
+const getAuth=async()=>{
     const userObject = new Users("admin");
     let infosUser = await userObject.getUserRight();
     let user = await userObject._getUserEntity();
@@ -24,56 +20,178 @@ const generateAiSeries=async()=>{
            process.env.TOKEN_SECRET, {
             expiresIn: "5h",
         });
-    let headers={
-        "Content-Type":"application/json",
-        "systemtoken":TOKEN
+    return {
+        headers:{
+            "Content-Type":"application/json",
+            "systemtoken":TOKEN
+        },
+        TOKEN
     }
-    let dateStr=moment.utc().format('YYYYMMDD');
-    for(let conf of allConf){
+}
+
+/**
+ * Orthanc /tools/find paginates at 100 results.
+ * Fetch ALL matching instances by walking "Since" pages.
+ */
+const findAllInstances=async(query,headers)=>{
+    const PAGE=100;
+    let all=[];
+    let since=0;
+    while(true){
         let payload={
             Level:"Instance",
-            CaseSensitive: false,
-            Expand: true,
-            Query:{
+            CaseSensitive:false,
+            Expand:true,
+            Since:since,
+            Limit:PAGE,
+            Query:query
+        };
+        let res=await axios.post('http://localhost:4000/api/tools/find',payload,{headers});
+        let batch=res.data||[];
+        all=all.concat(batch);
+        if(batch.length<PAGE) break;
+        since+=PAGE;
+    }
+    return all;
+}
+
+/**
+ * Find all matching series regardless of StudyDate.
+ * Used by the daily full scan.
+ */
+const findAllSeries=async(query,headers)=>{
+    const PAGE=100;
+    let all=[];
+    let since=0;
+    while(true){
+        let payload={
+            Level:"Series",
+            CaseSensitive:false,
+            Expand:true,
+            Since:since,
+            Limit:PAGE,
+            Query:query
+        };
+        let res=await axios.post('http://localhost:4000/api/tools/find',payload,{headers});
+        let batch=res.data||[];
+        all=all.concat(batch);
+        if(batch.length<PAGE) break;
+        since+=PAGE;
+    }
+    // pick one instance per series for record-keeping
+    return all.map(s=>{
+        let inst=(s.Instances||[])[0];
+        return {
+            seriesID:s.ID,
+            instanceID:inst,
+            parentStudy:s.ParentStudy,
+            series:s
+        };
+    });
+};
+
+/** All-time dedup set of series_id with a COMPLETED record */
+const getCompletedSeriesIds=async()=>{
+    let records=await db.AiSeriesRecord.findAll({raw:true,attributes:['series_id'],where:{status:"completed"}});
+    return new Set(records.map(r=>r.series_id));
+};
+
+/** Today (UTC) dedup set - any record (completed or failed) */
+const getTodayRecordedSeriesIds=async()=>{
+    let records=await db.AiSeriesRecord.findAll({
+        where:{
+            createdAt:{
+                [db.Sequelize.Op.gte]:moment.utc().startOf('day').toDate()
+            }
+        },
+        raw:true,
+        attributes:['series_id']
+    });
+    return new Set(records.map(r=>r.series_id));
+};
+
+const processSeries=async(conf,entry,auth)=>{
+    let seriesID=entry.seriesID;
+    let series;
+    try{
+        series=await axios.get(`http://localhost:4000/api/series/${seriesID}`,{headers:auth.headers});
+        series=series.data;
+    }catch(e){
+        console.log(`[generateAISeries] cannot fetch series ${seriesID}: ${e.message}`);
+        return;
+    }
+    try{
+        await GenerateSeries({tokenOrthancJs:auth.TOKEN},conf.link,[series.ID],series.ParentStudy,conf.name,conf.series_description,conf.modality);
+        await db.AiSeriesRecord.create({
+            series_id:seriesID,
+            instance_id:entry.instanceID,
+            status:"completed"
+        });
+        console.log(`[generateAISeries] processed series ${seriesID} (${conf.series_description}/${conf.modality})`);
+    }catch(e){
+        // record failures too, so the daily full scan retries them but the
+        // 2-min incremental scan doesn't hammer failing series forever
+        await db.AiSeriesRecord.create({
+            series_id:seriesID,
+            instance_id:entry.instanceID,
+            status:"failed"
+        }).catch(()=>{});
+        console.log(`[generateAISeries] FAILED series ${seriesID}: ${e.message}`);
+    }
+};
+
+/**
+ * Incremental scan (every 2 min): only today's studies (StudyDate = today UTC).
+ */
+const generateAiSeries=async()=>{
+    let allConf=await db.AiAutorouter.findAll({raw:true});
+    if(!allConf.length) return;
+    const auth=await getAuth();
+    let dateStr=moment.utc().format('YYYYMMDD');
+    let todaysIDs=await getTodayRecordedSeriesIds();
+    for(let conf of allConf){
+        let query={
             "0008103e":conf.series_description,
             "00080060":conf.modality,
-            "00080020":dateStr //StudyDate
-            }
+            "00080020":dateStr //StudyDate = today
         };
-        let res=await axios.post('http://localhost:4000/api/tools/find',payload,{headers}) //(await fetch('http://host.docker.internal/api/tools/find',getContentOption )).json()
-        let filteredInstance=[];
+        let instances=await findAllInstances(query,auth.headers);
         let parentIDs=[];
-        let todaysRecord=await db.AiSeriesRecord.findAll({
-            where:{
-                createdAt:{
-                    [db.Sequelize.Op.gte]:moment.utc().startOf('day').toDate()
-                }
-            },
-            raw:true
-        });
-        let todaysIDs=todaysRecord.map((record)=>record.series_id);
-        for(let instance of res.data){
-            if(!todaysIDs.includes(instance.ParentSeries)){
-                if(!parentIDs.includes(instance.ParentSeries)){
-                    parentIDs.push(instance.ParentSeries);
-                    filteredInstance.push(instance);
-                }
+        for(let instance of instances){
+            if(todaysIDs.has(instance.ParentSeries)) continue;
+            if(!parentIDs.includes(instance.ParentSeries)){
+                parentIDs.push(instance.ParentSeries);
             }
         }
-        for(let instance of filteredInstance){
-            let seriesID=instance.ParentSeries;
-            let series=await axios.get(`http://localhost:4000/api/series/${seriesID}`,{headers});
-            series=series.data;
-            try{
-            await GenerateSeries({tokenOrthancJs:TOKEN},conf.link,[series.ID],series.ParentStudy,conf.name,conf.series_description,conf.modality);
-            await db.AiSeriesRecord.create({
-                series_id:seriesID,
-                instance_id:instance.ID,
-                status:"completed"
-            });
-            }catch(e){
-                console.log(e);
-            }
+        for(let seriesID of parentIDs){
+            if(todaysIDs.has(seriesID)) continue;
+            await processSeries(conf,{seriesID,instanceID:null,parentStudy:null},auth);
+            todaysIDs.add(seriesID);
+        }
+    }
+}
+
+/**
+ * Full scan (daily at 02:00 MYT): scan the WHOLE archive for matching
+ * series regardless of StudyDate. Skips anything with a COMPLETED record
+ * (no duplication); retries new or previously-failed series.
+ */
+const generateAiSeriesFull=async()=>{
+    let allConf=await db.AiAutorouter.findAll({raw:true});
+    if(!allConf.length) return;
+    const auth=await getAuth();
+    let completed=await getCompletedSeriesIds();
+    for(let conf of allConf){
+        let query={
+            "0008103e":conf.series_description,
+            "00080060":conf.modality
+        };
+        let entries=await findAllSeries(query,auth.headers);
+        let pending=entries.filter(e=>!completed.has(e.seriesID));
+        console.log(`[generateAISeries:full] ${conf.series_description}/${conf.modality}: found ${entries.length} series, ${pending.length} pending (new or previously failed)`);
+        for(let entry of pending){
+            await processSeries(conf,entry,auth);
+            completed.add(entry.seriesID);
         }
     }
 }
@@ -90,4 +208,4 @@ const deleteAiSeriesRecord=async()=>{
 }
 
 
-module.exports={generateAiSeries,deleteAiSeriesRecord}
+module.exports={generateAiSeries,generateAiSeriesFull,deleteAiSeriesRecord}
