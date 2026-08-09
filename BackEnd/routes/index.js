@@ -233,6 +233,14 @@ router.post(
 router.get("/patients/*", [userAuthMidelware], reverseProxyGet);
 router.get("/studies/*", [userAuthMidelware], reverseProxyGet);
 
+// Preload Osimis viewer data (warm Orthanc caches) with progress tracking
+const {
+  startPreload,
+  getPreloadStatus,
+} = require("../controllers/preload");
+router.post("/preload/:studyId", [userAuthMidelware], startPreload);
+router.get("/preload/:studyId", [userAuthMidelware], getPreloadStatus);
+
 // Series thumbnail preview - finds one instance and returns Orthanc preview JPEG
 router.get("/series/:uid/thumbnail", [userAuthMidelware], async (req, res) => {
   try {

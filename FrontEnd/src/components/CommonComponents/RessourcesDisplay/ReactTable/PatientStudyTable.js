@@ -9,6 +9,7 @@ import ReportStatus from "../../ReportStatus";
 import { FormCheck, Dropdown, ButtonGroup } from "react-bootstrap";
 import SendAetDropdown from "../../../Export/SendAetDropdown";
 import apis from "../../../../services/apis";
+import preloadApi from "../../../../services/preload";
 import { toast } from "react-toastify";
 
 const PatientStudyTable = ({
@@ -283,27 +284,63 @@ const PatientStudyTable = ({
             "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
             studyId;
           const handlePreload = () => {
-            if (preloadRefs.current[studyId]) {
+            if (preloadRefs.current[studyId] || preloaded[studyId] === "done") {
               toast.info("Already preloaded");
               return;
             }
             setPreloaded((prev) => ({ ...prev, [studyId]: "loading" }));
-            const iframe = document.createElement("iframe");
-            iframe.src = osimisLink;
-            iframe.style.display = "none";
-            iframe.style.width = "0";
-            iframe.style.height = "0";
-            iframe.onload = () => {
-              preloadRefs.current[studyId] = iframe;
-              setPreloaded((prev) => ({ ...prev, [studyId]: "done" }));
-              toast.success("Osimis viewer cached");
-            };
-            iframe.onerror = () => {
-              setPreloaded((prev) => ({ ...prev, [studyId]: "error" }));
-              toast.error("Preload failed");
-            };
-            document.body.appendChild(iframe);
+
+            // 1. Start the server-side preload job (warms Orthanc caches, gives real progress)
+            preloadApi
+              .start(studyId)
+              .then(() => {
+                // 2. Also warm the browser cache by loading the viewer app shell in a hidden iframe
+                if (!preloadRefs.current[studyId]) {
+                  const iframe = document.createElement("iframe");
+                  iframe.src = osimisLink;
+                  iframe.style.display = "none";
+                  iframe.style.width = "0";
+                  iframe.style.height = "0";
+                  iframe.onload = () => {
+                    preloadRefs.current[studyId] = iframe;
+                  };
+                  document.body.appendChild(iframe);
+                }
+
+                // 3. Poll the server job for real progress
+                const poll = setInterval(() => {
+                  preloadApi
+                    .status(studyId)
+                    .then((job) => {
+                      if (job.status === "done" || job.status === "error") {
+                        clearInterval(poll);
+                        if (job.status === "done") {
+                          setPreloaded((prev) => ({ ...prev, [studyId]: "done" }));
+                          toast.success(
+                            `Preload complete: ${job.doneSeries}/${job.totalSeries} series cached`
+                          );
+                        } else {
+                          setPreloaded((prev) => ({ ...prev, [studyId]: "error" }));
+                          toast.error(`Preload failed: ${job.error || "unknown error"}`);
+                        }
+                      } else {
+                        setPreloaded((prev) => ({ ...prev, [studyId]: "loading" }));
+                      }
+                    })
+                    .catch(() => {
+                      clearInterval(poll);
+                      setPreloaded((prev) => ({ ...prev, [studyId]: "error" }));
+                      toast.error("Preload status check failed");
+                    });
+                }, 2000);
+              })
+              .catch((err) => {
+                setPreloaded((prev) => ({ ...prev, [studyId]: "error" }));
+                toast.error("Could not start preload");
+              });
           };
+          const showProgress =
+            state === "loading" && preloaded[studyId] !== "done";
           return (
             <button
               type="button"
@@ -317,7 +354,7 @@ const PatientStudyTable = ({
               disabled={state === "loading"}
             >
               {state === "loading"
-                ? "Loading..."
+                ? "Preloading..."
                 : state === "done"
                 ? "Cached ✓"
                 : "Preload"}
