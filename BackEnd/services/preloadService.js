@@ -1,23 +1,25 @@
 const Options = require("../model/Options");
-const db = require("../database/models");
 
 /**
  * Preload job manager.
- * Fetches study data from Orthanc (same endpoints the Osimis viewer uses),
- * warming Orthanc's internal caches, and reports progress.
+ * Warms the EXACT endpoints the Osimis web viewer uses, so opening a study
+ * in the viewer is fast.
  *
- * Strategy:
- *  - Phase 1: study metadata -> series list
- *  - Phase 2: per-series metadata (osimis-viewer endpoint, gives instance ids)
- *  - Phase 3: per-instance thumbnail pixel data (frames/0/raw, ~900KB each)
- *             limited to one representative image per series by default so a
- *             preload stays light (full pixel warm would be GBs per study).
+ * Viewer endpoints (verified from /osimis-viewer/app/js/app.js):
+ *  - /osimis-viewer/studies/{id}            study load (series list) — SLOW (0.3-1.5s)
+ *  - /osimis-viewer/series/{id}             series metadata + instances
+ *  - /osimis-viewer/images/{inst}/{frame}/pixeldata-quality   raw pixels (first render)
+ *  - /osimis-viewer/images/{inst}/{frame}/low|medium|high-quality (display variants)
  *
- * Concurrency: a queue limits how many studies are warmed at once so clicking
- * "Preload" on many rows (or Preload All) doesn't hammer Orthanc.
+ * Strategy per study:
+ *  Phase 1: warm /osimis-viewer/studies/{id} (study metadata the viewer fetches first)
+ *  Phase 2: per series: /osimis-viewer/series/{id} metadata
+ *  Phase 3: warm representative images: middle instance of each series
+ *           via the viewer's own image endpoints (pixeldata + medium + high quality)
+ *           — limited to 1 image/series by default so preload stays light.
  *
- * Persistence: on successful completion a PreloadRecord row is written so the
- * "Cached" state survives logout/login and page reloads (14-day freshness).
+ * Concurrency: a queue limits how many studies are warmed at once.
+ * Persistence: on success a PreloadRecord row is written ("Cached" for 14 days).
  */
 
 const jobs = new Map(); // studyId -> job
@@ -58,7 +60,7 @@ async function orthancGet(path, timeoutMs = 60000) {
   }
 }
 
-/** Stream a binary resource (thumbnail) to warm caches without buffering it all */
+/** Fetch a binary resource (viewer image) to warm the viewer plugin cache */
 async function orthancWarm(path, timeoutMs = 120000) {
   const url = getOrthancBaseUrl() + path;
   const controller = new AbortController();
@@ -71,7 +73,6 @@ async function orthancWarm(path, timeoutMs = 120000) {
     if (!res.ok) {
       throw new Error(`Orthanc ${res.status} on ${path}`);
     }
-    // consume the body so the transfer actually happens (warms Orthanc caches)
     await res.arrayBuffer();
   } finally {
     clearTimeout(timer);
@@ -95,6 +96,7 @@ function getActiveJobs() {
 
 /** Whether a study was cached within the freshness window (2 weeks) */
 async function isFresh(studyId) {
+  const db = require("../database/models");
   const rec = await db.PreloadRecord.findOne({
     where: { study_id: studyId },
     raw: true,
@@ -106,6 +108,7 @@ async function isFresh(studyId) {
 async function startPreload(studyId) {
   // Already fresh in cache -> return a synthetic done job without re-running
   if (await isFresh(studyId)) {
+    const db = require("../database/models");
     const rec = await db.PreloadRecord.findOne({
       where: { study_id: studyId },
       raw: true,
@@ -192,13 +195,15 @@ function pump() {
 async function runJob(job) {
   const studyId = job.studyId;
 
-  // Phase 1: study metadata -> series list
+  // Phase 1: warm the viewer's study endpoint (this is what the viewer calls first)
   job.phase = "study";
-  const study = await orthancGet(`/studies/${studyId}`);
-  const seriesIds = study.Series || [];
+  const study = await orthancGet(`/osimis-viewer/studies/${studyId}`);
+  let seriesIds = study.Series || [];
+  // The viewer returns series as plain ID strings
+  seriesIds = seriesIds.map((s) => (typeof s === "string" ? s : s.ID));
   job.totalSeries = seriesIds.length;
 
-  // Phase 2 + 3: per-series metadata + representative image
+  // Phase 2 + 3: per-series metadata + representative images via viewer endpoints
   job.phase = "series";
   for (const seriesId of seriesIds) {
     try {
@@ -206,13 +211,23 @@ async function runJob(job) {
       const instances = (series && series.instances) || [];
       job.totalInstances += instances.length;
 
-      // Warm one representative image per series (middle instance, like the viewer does)
+      // Warm one representative image per series (middle instance) via the
+      // viewer's own image endpoints so the plugin cache is populated
       const middle = Math.floor(instances.length / 2);
       const target = instances[middle];
       const instanceId = Array.isArray(target) ? target[0] : target;
       if (instanceId) {
+        const frameIndex = 0;
         try {
-          await orthancWarm(`/instances/${instanceId}/frames/0/raw`);
+          await orthancWarm(
+            `/osimis-viewer/images/${instanceId}/${frameIndex}/pixeldata-quality`
+          );
+          await orthancWarm(
+            `/osimis-viewer/images/${instanceId}/${frameIndex}/medium-quality`
+          );
+          await orthancWarm(
+            `/osimis-viewer/images/${instanceId}/${frameIndex}/high-quality`
+          );
           job.doneInstances += 1;
         } catch (e) {
           job.error = job.error || e.message;
@@ -231,6 +246,7 @@ async function runJob(job) {
 
   // Persist so "Cached" survives logout/login for 2 weeks
   try {
+    const db = require("../database/models");
     await db.PreloadRecord.upsert({
       study_id: studyId,
       cached_at: new Date(),
@@ -252,6 +268,7 @@ async function startPreloadMany(studyIds) {
 
 /** For a list of studyIds, return which are fresh-cached (within 2 weeks) */
 async function getCachedStatus(studyIds) {
+  const db = require("../database/models");
   const out = {};
   const recs = await db.PreloadRecord.findAll({
     where: { study_id: studyIds },
