@@ -565,6 +565,7 @@ class Users {
         role.view_radiant=currentRole.view_radiant
         role.view_horos=currentRole.view_horos
         role.view_weasis=currentRole.view_weasis
+        role.preload_osimis=currentRole.preload_osimis
         role.view_osimis=currentRole.view_osimis
         role.view_aiViewer=currentRole.view_aiViewer
         role.download_report=currentRole.download_report

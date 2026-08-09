@@ -9,6 +9,7 @@ import ReportStatus from "../../ReportStatus";
 import { FormCheck, Dropdown, ButtonGroup } from "react-bootstrap";
 import SendAetDropdown from "../../../Export/SendAetDropdown";
 import apis from "../../../../services/apis";
+import { toast } from "react-toastify";
 
 const PatientStudyTable = ({
   studies,
@@ -31,6 +32,8 @@ const PatientStudyTable = ({
     selectedAll: false,
   });
   const [aets, setAets] = useState([]);
+  const [preloaded, setPreloaded] = useState({});
+  const preloadRefs = useRef({});
 
   useEffect(() => {
     apis.aets.getAets().then(setAets).catch(console.log);
@@ -261,6 +264,64 @@ const PatientStudyTable = ({
                 "/archive"
               }
             />
+          );
+        },
+      },
+      {
+        id: "preload-osimis",
+        Header: "Preload",
+        show: roles.preload_osimis,
+        sort: false,
+        disableSortBy: true,
+        disableFilters: true,
+        disableGlobalFilter: true,
+        disableResizing: true,
+        Cell: ({ row }) => {
+          const studyId = row.original.ID;
+          const state = preloaded[studyId];
+          const osimisLink =
+            "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
+            studyId;
+          const handlePreload = () => {
+            if (preloadRefs.current[studyId]) {
+              toast.info("Already preloaded");
+              return;
+            }
+            setPreloaded((prev) => ({ ...prev, [studyId]: "loading" }));
+            const iframe = document.createElement("iframe");
+            iframe.src = osimisLink;
+            iframe.style.display = "none";
+            iframe.style.width = "0";
+            iframe.style.height = "0";
+            iframe.onload = () => {
+              preloadRefs.current[studyId] = iframe;
+              setPreloaded((prev) => ({ ...prev, [studyId]: "done" }));
+              toast.success("Osimis viewer cached");
+            };
+            iframe.onerror = () => {
+              setPreloaded((prev) => ({ ...prev, [studyId]: "error" }));
+              toast.error("Preload failed");
+            };
+            document.body.appendChild(iframe);
+          };
+          return (
+            <button
+              type="button"
+              name="preload_osimis"
+              className={
+                state === "done"
+                  ? "otjs-button otjs-button-green"
+                  : "otjs-button otjs-button-blue"
+              }
+              onClick={handlePreload}
+              disabled={state === "loading"}
+            >
+              {state === "loading"
+                ? "Loading..."
+                : state === "done"
+                ? "Cached ✓"
+                : "Preload"}
+            </button>
           );
         },
       },

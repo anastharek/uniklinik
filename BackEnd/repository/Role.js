@@ -144,6 +144,7 @@ class Role{
     view_radiant,
     view_horos,
     view_weasis,
+      preload_osimis,
     view_osimis,
     view_aiViewer,
     download_report,
@@ -277,6 +278,7 @@ class Role{
       view_radiant,
       view_horos,
       view_weasis,
+      preload_osimis,
       view_osimis,
       view_aiViewer,
       download_report,
@@ -420,6 +422,7 @@ class Role{
     view_radiant,
     view_horos,
     view_weasis,
+      preload_osimis,
     view_osimis,
     view_aiViewer,
     download_report,
@@ -552,6 +555,7 @@ class Role{
     role.view_radiant=view_radiant;
     role.view_horos=view_horos;
     role.view_weasis=view_weasis;
+    role.preload_osimis=preload_osimis;
     role.view_osimis=view_osimis;
     role.view_aiViewer=view_aiViewer;
     role.download_report=download_report;

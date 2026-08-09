@@ -118,6 +118,7 @@ export default class RoleForm extends Component {
     view_radiant:false,
     view_horos:false,
     view_weasis:false,
+    preload_osimis:false,
     view_osimis:false,
     view_aiViewer:false,
     download_report:false,
@@ -258,6 +259,7 @@ export default class RoleForm extends Component {
         view_radiant:this.props.data.view_radiant,
         view_horos:this.props.data.view_horos,
         view_weasis:this.props.data.view_weasis,
+        preload_osimis:this.props.data.preload_osimis,
         view_osimis:this.props.data.view_osimis,
         view_aiViewer:this.props.data.view_aiViewer,
         download_report:this.props.data.download_report,
@@ -2120,6 +2122,22 @@ export default class RoleForm extends Component {
               onChange={() =>
                 this.setState((prevState) => ({
                   view_weasis: !prevState.view_weasis,
+                }))
+              }
+            />
+          </Col>
+        </Row>
+
+        <Row className="mt-3">
+          <Col sm={5}>
+            <h5>Preload Osimis</h5>
+          </Col>
+          <Col sm={7}>
+            <Toggle
+              checked={this.state.preload_osimis}
+              onChange={() =>
+                this.setState((prevState) => ({
+                  preload_osimis: !prevState.preload_osimis,
                 }))
               }
             />
