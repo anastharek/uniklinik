@@ -264,7 +264,7 @@ const MyDashboard = () => {
                   <td>
                     <b>{data.type}</b>
                   </td>
-                  <td>{new Date(data.createdAt).toLocaleString()}</td>
+                  <td>{new Date(data.createdAt).toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur" })}</td>
                   <td>{data.username}</td>
                   <td>{data.ip}</td>
                   <td>

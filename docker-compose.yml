@@ -41,6 +41,7 @@ services:
         image: postgres:13.1
         ports: ["5490:5432"] #tukar
         environment:
+            TZ: "Asia/Kuala_Lumpur"
             POSTGRES_DB: "padimedical"
             POSTGRES_HOST_AUTH_METHOD: "trust"
             PG_STORAGE_ENABLED: "true"
@@ -59,6 +60,7 @@ services:
         mem_limit: 8g
         volumes: ["./ORTHANC:/var/lib/orthanc/db:Z"]
         environment:
+            TZ: "Asia/Kuala_Lumpur"
             ORTHANC__NAME: "STROKE" #exchange
             VERBOSE_STARTUP: "false"
             TRACE_ENABLED: "false"

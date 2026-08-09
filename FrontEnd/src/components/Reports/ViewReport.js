@@ -284,7 +284,7 @@ const ViewReport = () => {
           study_type: res?.report_data?.study_type || null,
           text: res?.report_data?.text || null,
           createdAt: res?.report_data?.createdAt
-            ? moment(res?.report_data?.createdAt).format('DD/MM/YYYY hh:mm A')
+            ? moment.utc(res?.report_data?.createdAt).utcOffset(8).format('DD/MM/YYYY hh:mm A')
             : "",
           patient_id: res?.report_data.patient_id,
           study_date: res?.report_data?.study_date,

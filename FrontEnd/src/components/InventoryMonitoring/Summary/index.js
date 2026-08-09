@@ -46,7 +46,7 @@ const DownloadExcel=({data={},filename='data'})=>{
   let activityData=data.activitys?.map(item=>{
     return {
       name:item.activity_type,
-      time:moment(item.createdAt).format('YYYY-MM-DD HH:mm:ss')
+      time:moment.utc(item.createdAt).utcOffset(8).format('YYYY-MM-DD HH:mm:ss')
     }
   })||[]
 

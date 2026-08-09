@@ -136,9 +136,9 @@ const DatasetCard = ({
                   </Tooltip>
                 </div>
                 <div>
-                  <Tooltip title={`Uploaded at ${moment(data.createdAt).format("DD/MM/YYYY")}`}>
+                  <Tooltip title={`Uploaded at ${moment.utc(data.createdAt).utcOffset(8).format("DD/MM/YYYY")}`}>
                     <span>
-                      {moment(data.createdAt).format("DD/MM/YYYY")}
+                      {moment.utc(data.createdAt).utcOffset(8).format("DD/MM/YYYY")}
                     </span>
                   </Tooltip>
                 </div>

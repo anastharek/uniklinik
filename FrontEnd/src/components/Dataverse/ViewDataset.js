@@ -128,7 +128,7 @@ export default function ViewDataset({goBack,id,disablePurchase}) {
         </div>
         {data['User.firstname']!==null &&<div className="col-4 col-sm-3">Owner : {data['User.firstname']} {data['User.lastname']}</div>}
         <div className='col-4 col-sm-3'>
-         Uploaded At : {moment(data.createdAt).format("DD/MM/YYYY")}
+         Uploaded At : {moment.utc(data.createdAt).utcOffset(8).format("DD/MM/YYYY")}
         </div>
       </div>
       <div className='my-3' style={{display:'flex',justifyContent:'space-between'}}>

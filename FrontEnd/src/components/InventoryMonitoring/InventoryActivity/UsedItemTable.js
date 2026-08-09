@@ -25,7 +25,7 @@ export default function InventoryTable({inventory=[] ,setQr,saveModal ,changeHan
         editable: false,
         Cell: ({ row }) => {
           return (
-          <p>{moment(row?.original?.createdAt).format('DD-MM-YYYY HH:mm:ss')}</p>
+          <p>{moment.utc(row?.original?.createdAt).utcOffset(8).format('DD-MM-YYYY HH:mm:ss')}</p>
           );
         },
       },

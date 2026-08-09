@@ -50,7 +50,7 @@ export default function RequestFeatureTable({
       {
         accessor: "createdAt",
         Header: "Request Date",
-        Cell:({row})=>(<p>{moment(row.values.createdAt).format('DD/MM/YYYY')}</p>),
+        Cell:({row})=>(<p>{moment.utc(row.values.createdAt).utcOffset(8).format('DD/MM/YYYY')}</p>),
         sort: true,
       },
       {

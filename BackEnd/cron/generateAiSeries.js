@@ -96,12 +96,12 @@ const getCompletedSeriesIds=async()=>{
     return new Set(records.map(r=>r.series_id));
 };
 
-/** Today (UTC) dedup set - any record (completed or failed) */
+/** Today (MYT) dedup set - any record (completed or failed) */
 const getTodayRecordedSeriesIds=async()=>{
     let records=await db.AiSeriesRecord.findAll({
         where:{
             createdAt:{
-                [db.Sequelize.Op.gte]:moment.utc().startOf('day').toDate()
+                [db.Sequelize.Op.gte]:moment.tz('Asia/Kuala_Lumpur').startOf('day').toDate()
             }
         },
         raw:true,
@@ -141,13 +141,13 @@ const processSeries=async(conf,entry,auth)=>{
 };
 
 /**
- * Incremental scan (every 2 min): only today's studies (StudyDate = today UTC).
+ * Incremental scan (every 2 min): only today's studies (StudyDate = today MYT).
  */
 const generateAiSeries=async()=>{
     let allConf=await db.AiAutorouter.findAll({raw:true});
     if(!allConf.length) return;
     const auth=await getAuth();
-    let dateStr=moment.utc().format('YYYYMMDD');
+    let dateStr=moment.tz('Asia/Kuala_Lumpur').format('YYYYMMDD');
     let todaysIDs=await getTodayRecordedSeriesIds();
     for(let conf of allConf){
         let query={
@@ -197,7 +197,7 @@ const generateAiSeriesFull=async()=>{
 }
 
 const deleteAiSeriesRecord=async()=>{
-    let date=moment.utc().subtract(2,'months').toDate();
+    let date=moment.tz('Asia/Kuala_Lumpur').subtract(2,'months').toDate();
     await db.AiSeriesRecord.destroy({
         where:{
             createdAt:{
