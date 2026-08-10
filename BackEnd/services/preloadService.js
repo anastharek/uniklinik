@@ -42,7 +42,7 @@ function getAuthHeader() {
   return "Basic " + Buffer.from(`${s.orthancUsername}:${s.orthancPassword}`).toString("base64");
 }
 
-async function orthancGet(path, timeoutMs = 60000) {
+async function orthancGet(path, timeoutMs = 900000) {
   const url = getOrthancBaseUrl() + path;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -61,7 +61,7 @@ async function orthancGet(path, timeoutMs = 60000) {
 }
 
 /** Fetch a binary resource (viewer image) to warm the viewer plugin cache */
-async function orthancWarm(path, timeoutMs = 120000) {
+async function orthancWarm(path, timeoutMs = 900000) {
   const url = getOrthancBaseUrl() + path;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
