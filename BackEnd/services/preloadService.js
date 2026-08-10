@@ -29,6 +29,42 @@ const MAX_CONCURRENT = 2; // studies warmed in parallel
 const CACHE_FRESH_MS = 14 * 24 * 60 * 60 * 1000; // 2 weeks
 const MAX_SERIES_THUMBNAILS = 1; // images warmed per series
 
+/**
+ * Host boot time (ms since epoch), read from /proc/uptime.
+ * /proc/uptime is HOST-wide even inside containers, so this reflects
+ * when the server last rebooted — not when the container started.
+ * Returns 0 if it can't be read (then no reboot invalidation happens).
+ */
+function getHostBootTime() {
+  try {
+    const fs = require("fs");
+    const uptimeStr = fs.readFileSync("/proc/uptime", "utf8");
+    const uptimeSec = parseFloat(uptimeStr.split(" ")[0]);
+    if (!isNaN(uptimeSec) && uptimeSec > 0) {
+      return Date.now() - uptimeSec * 1000;
+    }
+  } catch (e) {
+    // ignore — no reboot detection available
+  }
+  return 0;
+}
+
+/**
+ * Is a PreloadRecord still valid?
+ * - must be within the 14-day freshness window AND
+ * - must have been warmed AFTER the last host reboot: a reboot wipes the
+ *   OS page cache + Orthanc RAM cache, so anything preloaded before it is
+ *   cold again even though the DB row still says "Cached".
+ */
+function isRecordFresh(rec) {
+  if (!rec || !rec.cached_at) return false;
+  const cachedAt = new Date(rec.cached_at).getTime();
+  if (isNaN(cachedAt)) return false;
+  const hostBoot = getHostBootTime();
+  if (hostBoot > 0 && cachedAt < hostBoot) return false; // wiped by reboot
+  return Date.now() - cachedAt < CACHE_FRESH_MS;
+}
+
 function getOrthancBaseUrl() {
   const s = Options.getOrthancConnexionSettings();
   const baseUrl = s.orthancAddress.startsWith("http")
@@ -102,7 +138,7 @@ async function isFresh(studyId) {
     raw: true,
   });
   if (!rec) return false;
-  return Date.now() - new Date(rec.cached_at).getTime() < CACHE_FRESH_MS;
+  return isRecordFresh(rec);
 }
 
 async function startPreload(studyId) {
@@ -278,7 +314,7 @@ async function getCachedStatus(studyIds) {
   recs.forEach((r) => (byId[r.study_id] = r));
   for (const sid of studyIds) {
     const r = byId[sid];
-    const fresh = r && Date.now() - new Date(r.cached_at).getTime() < CACHE_FRESH_MS;
+    const fresh = isRecordFresh(r);
     out[sid] = {
       cached: !!fresh,
       cachedAt: r ? r.cached_at : null,
