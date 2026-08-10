@@ -120,22 +120,36 @@ const processSeries=async(conf,entry,auth)=>{
         console.log(`[generateAISeries] cannot fetch series ${seriesID}: ${e.message}`);
         return;
     }
+    // The AiSeriesRecord.instance_id column is NOT NULL. The incremental
+    // scan used to pass null here, which made BOTH the completed AND the
+    // failed record fail to insert -> the series was never marked done ->
+    // it was reprocessed every 2 minutes -> a flood of duplicate AI series.
+    // Derive a real instance ID from the series payload whenever the caller
+    // didn't provide one (a series always has at least one instance).
+    const instanceID = entry.instanceID || (series.Instances && series.Instances[0]) || null;
+    if (!instanceID) {
+        console.log(`[generateAISeries] WARN series ${seriesID} has no instances, skipping record`);
+    }
     try{
         await GenerateSeries({tokenOrthancJs:auth.TOKEN},conf.link,[series.ID],series.ParentStudy,conf.name,conf.series_description,conf.modality);
-        await db.AiSeriesRecord.create({
-            series_id:seriesID,
-            instance_id:entry.instanceID,
-            status:"completed"
-        });
+        if (instanceID) {
+            await db.AiSeriesRecord.create({
+                series_id:seriesID,
+                instance_id:instanceID,
+                status:"completed"
+            });
+        }
         console.log(`[generateAISeries] processed series ${seriesID} (${conf.series_description}/${conf.modality})`);
     }catch(e){
         // record failures too, so the daily full scan retries them but the
         // 2-min incremental scan doesn't hammer failing series forever
-        await db.AiSeriesRecord.create({
-            series_id:seriesID,
-            instance_id:entry.instanceID,
-            status:"failed"
-        }).catch(()=>{});
+        if (instanceID) {
+            await db.AiSeriesRecord.create({
+                series_id:seriesID,
+                instance_id:instanceID,
+                status:"failed"
+            }).catch(err=>console.log(`[generateAISeries] WARN failed to record failure for ${seriesID}: ${err.message}`));
+        }
         console.log(`[generateAISeries] FAILED series ${seriesID}: ${e.message}`);
     }
 };
@@ -157,15 +171,20 @@ const generateAiSeries=async()=>{
         };
         let instances=await findAllInstances(query,auth.headers);
         let parentIDs=[];
+        // map seriesID -> first instance ID so processSeries can record
+        // a valid instance_id (NOT NULL column; null previously caused
+        // every record insert to fail -> infinite reprocessing flood)
+        let instanceBySeries={};
         for(let instance of instances){
             if(todaysIDs.has(instance.ParentSeries)) continue;
             if(!parentIDs.includes(instance.ParentSeries)){
                 parentIDs.push(instance.ParentSeries);
+                instanceBySeries[instance.ParentSeries]=instance.ID;
             }
         }
         for(let seriesID of parentIDs){
             if(todaysIDs.has(seriesID)) continue;
-            await processSeries(conf,{seriesID,instanceID:null,parentStudy:null},auth);
+            await processSeries(conf,{seriesID,instanceID:instanceBySeries[seriesID]||null,parentStudy:null},auth);
             todaysIDs.add(seriesID);
         }
     }
