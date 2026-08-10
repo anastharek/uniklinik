@@ -130,6 +130,39 @@ const processSeries=async(conf,entry,auth)=>{
     if (!instanceID) {
         console.log(`[generateAISeries] WARN series ${seriesID} has no instances, skipping record`);
     }
+
+    // RULE: only ONE AI series per study. Check whether an AI output series
+    // (description contains "(AI ") already exists for this parent study.
+    // If yes, skip generation entirely and just mark the input series done,
+    // so a reprocessed input can never create a second AI output again.
+    try {
+        // Orthanc /tools/find does NOT accept the internal ParentStudy key in
+        // this build ("Unknown DICOM tag") -> resolve StudyInstanceUID first.
+        const studyRes = await axios.get(`http://localhost:4000/api/studies/${series.ParentStudy}`, { headers: auth.headers });
+        const studyUID = (studyRes.data && studyRes.data.MainDicomTags && studyRes.data.MainDicomTags.StudyInstanceUID) || null;
+        if (studyUID) {
+            const existing = await axios.post(`http://localhost:4000/api/tools/find`, {
+                Level: "Series",
+                Query: { StudyInstanceUID: studyUID, SeriesDescription: "* (AI *" },
+                Short: true,
+                Limit: 1
+            }, { headers: auth.headers });
+            if (existing.data && existing.data.length > 0) {
+                if (instanceID) {
+                    await db.AiSeriesRecord.create({
+                        series_id: seriesID,
+                        instance_id: instanceID,
+                        status: "completed"
+                    });
+                }
+                console.log(`[generateAISeries] AI series already exists for study ${series.ParentStudy}, skipped ${seriesID}`);
+                return;
+            }
+        }
+    } catch (dedupErr) {
+        console.log(`[generateAISeries] WARN dedup check failed for ${seriesID}: ${dedupErr.message}`);
+    }
+
     try{
         await GenerateSeries({tokenOrthancJs:auth.TOKEN},conf.link,[series.ID],series.ParentStudy,conf.name,conf.series_description,conf.modality);
         if (instanceID) {
