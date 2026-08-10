@@ -25,9 +25,54 @@ const Options = require("../model/Options");
 const jobs = new Map(); // studyId -> job
 const queue = []; // studyIds waiting to run
 let activeCount = 0;
+let pumpBusy = false; // re-entrancy guard for pump()
 const MAX_CONCURRENT = 2; // studies warmed in parallel
 const CACHE_FRESH_MS = 14 * 24 * 60 * 60 * 1000; // 2 weeks
 const MAX_SERIES_THUMBNAILS = 1; // images warmed per series
+
+// Flood protection:
+// - CHURN_INSTANCES: how many NEW instances must land in Orthanc (since a
+//   preload finished) before we consider the warmed 4GB RAM cache evicted.
+//   ~4GB cache / ~0.9MB per frame ≈ 4,000-5,000 instances. Beyond this the
+//   badge honestly drops (data is gone even though the DB row is fresh).
+const CHURN_INSTANCES = 4000;
+// - BUSY_RATE_PER_SEC: ingest rate (changes Last delta per second) above
+//   which Orthanc is considered flooded — preload jobs wait, and the
+//   auto-repreload cron skips, so we never add load during a flood.
+//   Normal quiet = 0/s; JAAFAR flood was 8-26/s.
+const BUSY_RATE_PER_SEC = 10;
+
+/**
+ * Read the current Orthanc /changes "Last" sequence number.
+ * Monotonic: advances by 1 per change event (mostly per NewInstance).
+ * Returns 0 if unavailable.
+ */
+async function getChangesLast() {
+  try {
+    const d = await orthancGet("/changes?limit=1", 15000);
+    return d && d.Last ? d.Last : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+/**
+ * Sample ingest rate (instances/sec) by reading /changes Last twice.
+ * seconds: sampling window. Returns 0 if either read fails.
+ */
+async function getIngestRate(seconds = 3) {
+  const a = await getChangesLast();
+  await new Promise((r) => setTimeout(r, seconds * 1000));
+  const b = await getChangesLast();
+  if (!a || !b) return 0;
+  return (b - a) / seconds;
+}
+
+/** Is Orthanc currently flooded with incoming instances? */
+async function isOrthancBusy() {
+  const rate = await getIngestRate(2);
+  return rate > BUSY_RATE_PER_SEC;
+}
 
 /**
  * Host boot time (ms since epoch), read from /proc/uptime.
@@ -55,14 +100,37 @@ function getHostBootTime() {
  * - must have been warmed AFTER the last host reboot: a reboot wipes the
  *   OS page cache + Orthanc RAM cache, so anything preloaded before it is
  *   cold again even though the DB row still says "Cached".
+ * - must NOT have been churned away: if >CHURN_INSTANCES new instances
+ *   landed in Orthanc after the preload finished, the 4GB LRU cache almost
+ *   certainly evicted the warmed data (flood). Requires a current changes
+ *   seq passed in (fetched once per batch by the caller).
  */
-function isRecordFresh(rec) {
+function isRecordFresh(rec, currentChangesLast) {
   if (!rec || !rec.cached_at) return false;
   const cachedAt = new Date(rec.cached_at).getTime();
   if (isNaN(cachedAt)) return false;
   const hostBoot = getHostBootTime();
   if (hostBoot > 0 && cachedAt < hostBoot) return false; // wiped by reboot
-  return Date.now() - cachedAt < CACHE_FRESH_MS;
+  if (Date.now() - cachedAt >= CACHE_FRESH_MS) return false;
+  // churn check: only if we have both a recorded seq and a live read
+  if (rec.change_seq && currentChangesLast > rec.change_seq) {
+    if (currentChangesLast - rec.change_seq > CHURN_INSTANCES) {
+      return false; // flooded since preload -> cache evicted -> not fresh
+    }
+  }
+  return true;
+}
+
+/** Freshness for a single study (fetches current changes seq itself) */
+async function isFresh(studyId) {
+  const db = require("../database/models");
+  const rec = await db.PreloadRecord.findOne({
+    where: { study_id: studyId },
+    raw: true,
+  });
+  if (!rec) return false;
+  const current = await getChangesLast();
+  return isRecordFresh(rec, current);
 }
 
 function getOrthancBaseUrl() {
@@ -144,15 +212,6 @@ function getActiveJobs() {
 }
 
 /** Whether a study was cached within the freshness window (2 weeks) */
-async function isFresh(studyId) {
-  const db = require("../database/models");
-  const rec = await db.PreloadRecord.findOne({
-    where: { study_id: studyId },
-    raw: true,
-  });
-  if (!rec) return false;
-  return isRecordFresh(rec);
-}
 
 async function startPreload(studyId) {
   // Already fresh in cache -> return a synthetic done job without re-running
@@ -218,6 +277,35 @@ function updateQueuePositions() {
 }
 
 function pump() {
+  if (pumpBusy) return; // re-entrancy guard
+  pumpBusy = true;
+  // Flood protection: if Orthanc is currently ingesting a heavy wave
+  // (e.g. a 9,000-instance study arriving), hold queued jobs instead of
+  // starting them — preloading during a flood both adds CPU load AND the
+  // warmed data gets evicted immediately anyway. Retry shortly.
+  isOrthancBusy()
+    .then((busy) => {
+      if (busy && queue.length && activeCount < MAX_CONCURRENT) {
+        for (const id of queue) {
+          const j = jobs.get(id);
+          if (j && j.status === "queued") {
+            j.phase = "waiting-orthanc";
+          }
+        }
+        pumpBusy = false;
+        setTimeout(pump, 15000); // re-check after Orthanc calms
+        return;
+      }
+      pumpBusy = false;
+      pumpInner();
+    })
+    .catch(() => {
+      pumpBusy = false;
+      pumpInner();
+    });
+}
+
+function pumpInner() {
   while (activeCount < MAX_CONCURRENT && queue.length) {
     const studyId = queue.shift();
     const job = jobs.get(studyId);
@@ -293,13 +381,16 @@ async function runJob(job) {
   job.phase = "done";
   job.finishedAt = new Date().toISOString();
 
-  // Persist so "Cached" survives logout/login for 2 weeks
+  // Persist so "Cached" survives logout/login for 2 weeks.
+  // Also record the current /changes seq so future floods can be detected.
   try {
     const db = require("../database/models");
+    const changeSeq = await getChangesLast();
     await db.PreloadRecord.upsert({
       study_id: studyId,
       cached_at: new Date(),
       total_series: job.totalSeries,
+      change_seq: changeSeq || null,
     });
   } catch (e) {
     job.error = job.error || `cache persist failed: ${e.message}`;
@@ -325,16 +416,57 @@ async function getCachedStatus(studyIds) {
   });
   const byId = {};
   recs.forEach((r) => (byId[r.study_id] = r));
+  // fetch the current changes seq ONCE for the whole batch (churn detection)
+  const current = await getChangesLast();
   for (const sid of studyIds) {
     const r = byId[sid];
-    const fresh = isRecordFresh(r);
+    const fresh = isRecordFresh(r, current);
     out[sid] = {
       cached: !!fresh,
       cachedAt: r ? r.cached_at : null,
       totalSeries: r ? r.total_series : 0,
+      changeSeq: r ? r.change_seq : null,
+      currentChangeSeq: current,
     };
   }
   return out;
+}
+
+/**
+ * Auto re-preload: find studies whose preload is <14 days old and post-reboot
+ * but was CHURNED AWAY by a flood (changes seq advanced >CHURN_INSTANCES since
+ * their preload). Only runs when Orthanc is calm (not currently flooding) so
+ * we never add load during an ingest wave. Re-warms at most a few per call;
+ * the 5-min cron keeps calling until the backlog is cleared.
+ */
+async function repreloadChurned(max = 3) {
+  // never re-preload while Orthanc is actively flooding
+  if (await isOrthancBusy()) return { skipped: "busy", count: 0 };
+
+  const db = require("../database/models");
+  const current = await getChangesLast();
+  if (!current) return { skipped: "no-seq", count: 0 };
+
+  const hostBoot = getHostBootTime();
+  const recs = await db.PreloadRecord.findAll({ raw: true });
+  const churned = [];
+  for (const r of recs) {
+    if (!r.change_seq || !r.cached_at) continue;
+    const cachedAt = new Date(r.cached_at).getTime();
+    if (isNaN(cachedAt)) continue;
+    if (hostBoot > 0 && cachedAt < hostBoot) continue; // reboot-wiped, not our job
+    if (Date.now() - cachedAt >= CACHE_FRESH_MS) continue; // expired anyway
+    if (current - r.change_seq > CHURN_INSTANCES) {
+      churned.push(r.study_id); // fresh window but evicted by flood
+    }
+  }
+
+  const started = [];
+  for (const studyId of churned.slice(0, max)) {
+    const job = await startPreload(studyId);
+    started.push({ studyId, status: job.status });
+  }
+  return { churned: churned.length, started };
 }
 
 module.exports = {
@@ -344,4 +476,8 @@ module.exports = {
   getActiveJobs,
   getCachedStatus,
   isFresh,
+  getChangesLast,
+  getIngestRate,
+  isOrthancBusy,
+  repreloadChurned,
 };

@@ -11,7 +11,7 @@ services:
         container_name: pmstroke5.1 #tukar
         ports: ["9156:4000"] #tukar
         restart: unless-stopped
-        volumes: ["./orthanc3:/var/lib/orthanc/db:Z", "./BackEnd/database/migrations:/OrthancToolsJs/database/migrations:Z", "./BackEnd/services:/OrthancToolsJs/services:Z", "./BackEnd/cron:/OrthancToolsJs/cron:Z", "./BackEnd/controllers:/OrthancToolsJs/controllers:Z"]
+        volumes: ["./orthanc3:/var/lib/orthanc/db:Z", "./BackEnd/database/migrations:/OrthancToolsJs/database/migrations:Z", "./BackEnd/database/models:/OrthancToolsJs/database/models:Z", "./BackEnd/services:/OrthancToolsJs/services:Z", "./BackEnd/cron:/OrthancToolsJs/cron:Z", "./BackEnd/controllers:/OrthancToolsJs/controllers:Z", "./BackEnd/routes:/OrthancToolsJs/routes:Z"]
         environment:
             TZ: "Asia/Kuala_Lumpur"
             ORTHANC_ADDRESS: "http://orthanc"

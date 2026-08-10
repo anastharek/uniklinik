@@ -240,12 +240,14 @@ const {
   getPreloadStatus,
   getActivePreloads,
   getCachedStatus,
+  getOrthancHealth,
 } = require("../controllers/preload");
 router.post("/preload", [userAuthMidelware], startPreloadMany);
 router.get("/preload/active", [userAuthMidelware], getActivePreloads);
 router.get("/preload/cached", [userAuthMidelware], getCachedStatus);
 router.post("/preload/:studyId", [userAuthMidelware], startPreload);
 router.get("/preload/:studyId", [userAuthMidelware], getPreloadStatus);
+router.get("/orthanc/health", [userAuthMidelware], getOrthancHealth);
 
 // Series thumbnail preview - finds one instance and returns Orthanc preview JPEG
 router.get("/series/:uid/thumbnail", [userAuthMidelware], async (req, res) => {

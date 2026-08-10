@@ -96,10 +96,25 @@ const getCachedStatus = async function (req, res) {
   res.json(status);
 };
 
+/**
+ * GET /api/orthanc/health - is Orthanc currently flooding (heavy ingest)?
+ * Used by the frontend to warn "slow now = flood, not your preload".
+ */
+const getOrthancHealth = async function (req, res) {
+  const rate = await preloadService.getIngestRate(3);
+  const busy = rate > 10; // same threshold as preloadService
+  res.json({
+    busy,
+    ingestRatePerSec: Math.round(rate * 10) / 10,
+    checkedAt: new Date().toISOString(),
+  });
+};
+
 module.exports = {
   startPreload,
   startPreloadMany,
   getPreloadStatus,
   getActivePreloads,
   getCachedStatus,
+  getOrthancHealth,
 };

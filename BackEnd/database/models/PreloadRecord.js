@@ -17,6 +17,13 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: 0,
       },
+      // Orthanc /changes "Last" seq at preload completion — used to detect
+      // that a flood of new instances has evicted the warmed RAM cache.
+      change_seq: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        defaultValue: null,
+      },
       createdAt: DataTypes.DATE,
       updatedAt: DataTypes.DATE,
     },

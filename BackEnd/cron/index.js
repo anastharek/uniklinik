@@ -18,3 +18,22 @@ cron.schedule("0 2 * * *", async () => {
 cron.schedule("0 0 1 * *", async () => {
   deleteAiSeriesRecord();
 });
+
+// Flood protection: auto re-preload studies whose cache was churned away by a
+// big ingest wave (e.g. a 9,000-instance study arriving). Runs every 5 min;
+// only acts when Orthanc is calm, re-warming a few per tick until caught up.
+const { repreloadChurned } = require("../services/preloadService");
+cron.schedule("*/5 * * * *", async () => {
+  try {
+    const res = await repreloadChurned(3);
+    if (res.started && res.started.length) {
+      console.log(
+        `[preload-flood] churned=${res.churned} started=${res.started.length} (${res.started
+          .map((s) => s.studyId.slice(0, 8))
+          .join(",")})`
+      );
+    }
+  } catch (e) {
+    console.error("[preload-flood] error:", e.message);
+  }
+});
