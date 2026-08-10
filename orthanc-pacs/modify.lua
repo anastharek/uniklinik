@@ -3,17 +3,23 @@
 -- =============================================================================
 -- ACCEPTANCE RULES:
 -- CT  → Brain / Head / Stroke keywords
--- MR  → PUTRA/STROKE protocol OR BodyPart = BRAIN
+-- MR  → PUTRA/STROKE protocol OR description/body part contains BRAIN
 -- XA  → Brain/Head angio
 -- All other modalities → DELETED
 -- Non-image SOP classes → DELETED
 --
--- IncomingDicomInstanceFilter: rejects BEFORE storage (saves CPU/disk)
+-- ReceivedInstanceFilter: rejects BEFORE storage (saves CPU/disk)
+--   NOTE: Orthanc >= 1.12 renamed this callback from IncomingDicomInstanceFilter
+--   AND changed its contract:
+--     * first arg = ALREADY-PARSED simplified DICOM tags (a Lua table),
+--       NOT raw DICOM bytes (no DicomToJson/ParseJson needed)
+--     * must return TRUE (accept) / FALSE (reject) — a boolean predicate,
+--       NOT the dicom table or nil (old pre-1.12 behavior)
+--     * origin is a JSON table with origin["RequestOrigin"] (e.g. "Lua",
+--       "RestApi", "DicomProtocol") — NOT a plain string
+--   Using the OLD name/contract silently disables or errors filtering.
 -- OnStoredInstance: tags accepted instances only
 -- =============================================================================
-
-local SCRIPT_START_TIME = os.time()
-local STARTUP_GRACE_SECONDS = 300
 
 function Log(msg)
    print('[MODIFY.LUA] ' .. os.date('%Y-%m-%d %H:%M:%S') .. ' | ' .. msg)
@@ -53,36 +59,43 @@ local NON_IMAGE_SOP_CLASSES = {
 }
 
 -- =============================================================================
--- IncomingDicomInstanceFilter — reject BEFORE storage (saves CPU/disk)
+-- ReceivedInstanceFilter — reject BEFORE storage (saves CPU/disk)
+-- Orthanc 1.12+ contract: ReceivedInstanceFilter(simplifiedTags, origin, info)
+-- returns TRUE (accept) or FALSE (reject).
 -- =============================================================================
-function IncomingDicomInstanceFilter(dicom, origin, info)
+function ReceivedInstanceFilter(tags, origin, info)
    -- Only filter incoming DICOM from remote senders (not internal/Lua operations)
-   if origin == 'Lua' then return dicom end
-
-   -- Parse minimal tags from the DICOM bytes (DicomToJson + ParseJson)
-   local ok, parsed = pcall(function()
-      return ParseJson(DicomToJson(dicom))
-   end)
-   if not ok or parsed == nil then
-      -- Can't parse — let Orthanc handle it, OnStoredInstance will catch it
-      return dicom
+   if type(origin) == 'table' and origin['RequestOrigin'] == 'Lua' then
+      return true  -- accept, don't filter internal operations
    end
 
-   local sopClassUid = parsed['SOPClassUID'] or ''
+   -- "tags" is already the simplified DICOM tags (a Lua table) in 1.12+
+   if type(tags) ~= 'table' then
+      -- Defensive: if we somehow got raw bytes, parse them
+      local ok, parsed = pcall(function()
+         return ParseJson(DicomToJson(tags))
+      end)
+      if not ok or parsed == nil then
+         return true  -- can't parse — let Orthanc handle it
+      end
+      tags = parsed
+   end
+
+   local sopClassUid = tags['SOPClassUID'] or ''
 
    -- Non-image SOP → reject immediately
    local nonImageType = NON_IMAGE_SOP_CLASSES[sopClassUid]
    if nonImageType then
       Log('✗ PRE-STORAGE REJECT: Non-image SOP — ' .. nonImageType)
-      return nil  -- nil = reject, never stored
+      return false  -- reject, never stored
    end
 
-   local modality = upper(parsed['Modality'] or '')
-   local bodyPart = upper(parsed['BodyPartExamined'] or '')
-   local studyDesc = upper(parsed['StudyDescription'] or '')
-   local seriesDesc = upper(parsed['SeriesDescription'] or '')
-   local protocol = upper(parsed['ProtocolName'] or '')
-   local reqProc = upper(parsed['RequestedProcedureDescription'] or '')
+   local modality = upper(tags['Modality'] or '')
+   local bodyPart = upper(tags['BodyPartExamined'] or '')
+   local studyDesc = upper(tags['StudyDescription'] or '')
+   local seriesDesc = upper(tags['SeriesDescription'] or '')
+   local protocol = upper(tags['ProtocolName'] or '')
+   local reqProc = upper(tags['RequestedProcedureDescription'] or '')
    local combined = bodyPart .. ' ' .. studyDesc .. ' ' .. seriesDesc .. ' ' .. protocol .. ' ' .. reqProc
 
    local reject = nil
@@ -95,8 +108,10 @@ function IncomingDicomInstanceFilter(dicom, origin, info)
       end
 
    elseif modality == 'MR' then
+      -- NOTE: BodyPartExamined is often absent in these DICOMs, so also
+      -- accept when the description/protocol mentions BRAIN
       local isPutraStroke = combined:find('PUTRA') or combined:find('STROKE')
-      local isBrain = bodyPart == 'BRAIN'
+      local isBrain = (bodyPart == 'BRAIN') or combined:find('BRAIN')
       if not (isPutraStroke or isBrain) then
          reject = 'MR: not PUTRA/STROKE and not BRAIN'
       end
@@ -112,12 +127,12 @@ function IncomingDicomInstanceFilter(dicom, origin, info)
 
    if reject then
       Log('✗ PRE-STORAGE REJECT: ' .. reject)
-      return nil  -- nil = reject, never touches disk
+      return false  -- reject, never touches disk
    end
 
    -- Accepted — let Orthanc store it
    Log('✓ Pre-accepted: ' .. modality)
-   return dicom
+   return true
 end
 
 -- =============================================================================
