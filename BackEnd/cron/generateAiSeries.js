@@ -131,10 +131,13 @@ const processSeries=async(conf,entry,auth)=>{
         console.log(`[generateAISeries] WARN series ${seriesID} has no instances, skipping record`);
     }
 
-    // RULE: only ONE AI series per study. Check whether an AI output series
-    // (description contains "(AI ") already exists for this parent study.
-    // If yes, skip generation entirely and just mark the input series done,
-    // so a reprocessed input can never create a second AI output again.
+    // RULE: only ONE AI series per TYPE per study (e.g. one "sb1000 (AI ...)",
+    // one "swi mip (AI ...)"). Check whether an AI output series with the SAME
+    // series_description already exists for this parent study. If yes, skip
+    // generation entirely and just mark the input series done, so a reprocessed
+    // input can never create a second AI output again. Matching is scoped to
+    // conf.series_description so adding a NEW rule (e.g. "swi mip") is NOT
+    // blocked by an existing different AI series (e.g. "sb1000").
     try {
         // Orthanc /tools/find does NOT accept the internal ParentStudy key in
         // this build ("Unknown DICOM tag") -> resolve StudyInstanceUID first.
@@ -143,7 +146,7 @@ const processSeries=async(conf,entry,auth)=>{
         if (studyUID) {
             const existing = await axios.post(`http://localhost:4000/api/tools/find`, {
                 Level: "Series",
-                Query: { StudyInstanceUID: studyUID, SeriesDescription: "* (AI *" },
+                Query: { StudyInstanceUID: studyUID, SeriesDescription: `${conf.series_description} (AI *` },
                 Short: true,
                 Limit: 1
             }, { headers: auth.headers });
