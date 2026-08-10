@@ -1,5 +1,11 @@
 const preloadService = require("../services/preloadService");
 
+/** Never let browsers/ETags serve stale preload state */
+function noStore(res) {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+  res.set("Pragma", "no-cache");
+}
+
 const startPreload = async function (req, res) {
   const { studyId } = req.params;
   if (!studyId) {
@@ -86,6 +92,7 @@ const getCachedStatus = async function (req, res) {
     return res.status(400).json({ message: "studyIds query param is required" });
   }
   const status = await preloadService.getCachedStatus(studyIds);
+  noStore(res);
   res.json(status);
 };
 

@@ -119,11 +119,24 @@ function getJob(studyId) {
   return jobs.get(studyId) || null;
 }
 
-/** All jobs that are queued or running (for the global progress widget) */
+/**
+ * All jobs the UI should see: queued/running PLUS recently finished ones.
+ * Finished jobs stay visible for a short grace period so the frontend's
+ * completion watcher can observe the "done"/"error" status and flip the
+ * button — without this, a job vanishes from /active the instant it ends
+ * and the UI stays stuck on "Preloading…" until a page refresh.
+ */
 function getActiveJobs() {
   const list = [];
+  const now = Date.now();
+  const GRACE_MS = 60 * 1000; // keep finished jobs visible for 60s
   for (const job of jobs.values()) {
     if (job.status === "queued" || job.status === "running") {
+      list.push(job);
+    } else if (
+      job.finishedAt &&
+      now - new Date(job.finishedAt).getTime() < GRACE_MS
+    ) {
       list.push(job);
     }
   }
