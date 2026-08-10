@@ -98,6 +98,20 @@ function ReceivedInstanceFilter(tags, origin, info)
    local reqProc = upper(tags['RequestedProcedureDescription'] or '')
    local combined = bodyPart .. ' ' .. studyDesc .. ' ' .. seriesDesc .. ' ' .. protocol .. ' ' .. reqProc
 
+   -- =========================================================================
+   -- AI OUTPUT SERIES — ALWAYS ACCEPT
+   -- The AI autorouter creates series named e.g. "sb1000 (AI 10-Aug-2026 08:58 AM)",
+   -- "mra (AI ...)", "swi mip (AI ...)" inside an ALREADY-ACCEPTED study.
+   -- These must never be rejected by the brain/PUTRA/STROKE rules below
+   -- (their study may be e.g. an IAM/MRA study without those keywords).
+   -- DEDUP is handled by the autorouter itself (ONE series per type per study),
+   -- so accepting all "(AI" series here cannot cause duplicates.
+   -- =========================================================================
+   if seriesDesc:find('(AI', 1, true) then
+      Log('✓ Pre-accepted: AI output series (' .. seriesDesc .. ')')
+      return true
+   end
+
    local reject = nil
 
    if modality == 'CT' then
