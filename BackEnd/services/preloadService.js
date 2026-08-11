@@ -277,6 +277,7 @@ async function startPreload(studyId) {
     doneSeries: 0,
     totalInstances: 0,
     doneInstances: 0,
+    failedSeries: 0,
     phase: "queued",
     startedAt: null,
     finishedAt: null,
@@ -486,6 +487,7 @@ async function runJob(job) {
       job.doneSeries += 1;
     } catch (e) {
       job.doneSeries += 1; // count failures too so progress advances
+      job.failedSeries += 1;
       job.error = job.error || e.message;
     }
   }
@@ -493,6 +495,17 @@ async function runJob(job) {
   job.status = "done";
   job.phase = "done";
   job.finishedAt = new Date().toISOString();
+
+  // Don't mark this study as Cached if most series failed (e.g. Orthanc was
+  // restarting mid-job): a Cached badge on un-warmed data is a lie. The
+  // record is skipped so the UI shows Preload again and the user can retry.
+  const failRatio = job.totalSeries ? job.failedSeries / job.totalSeries : 0;
+  if (failRatio > 0.25) {
+    console.log(
+      `[PRELOAD] ${studyId.slice(0, 8)} ${job.failedSeries}/${job.totalSeries} series failed — NOT marking Cached, retry needed`
+    );
+    return;
+  }
 
   // Persist so "Cached" survives logout/login for 2 weeks.
   // Also record the current /changes seq so future floods can be detected.

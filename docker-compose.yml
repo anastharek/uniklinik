@@ -117,7 +117,7 @@ services:
             ORTHANC__MAXIMUM_STORAGE_CACHE_SIZE: "4096" #RAM cache for recently read/written files (default 128MB → 4GB so preloaded frames stay hot)
             # Osimis viewer plugin cache (modern ORTHANC__WEB_VIEWER__* form for orthancteam image; legacy MVB_/WVB_ env vars are deprecated and refuse startup)
             ORTHANC__WEB_VIEWER__SHORT_TERM_CACHE_ENABLED: "true"
-            ORTHANC__WEB_VIEWER__SHORT_TERM_CACHE_SIZE: "5000" #MB, same as tuned reference (5GB short-term cache)
+            ORTHANC__WEB_VIEWER__SHORT_TERM_CACHE_SIZE: "60000" #MB — 60GB disk-backed warm cache on NAS (raised from 5GB so ~100 big XA studies stay warm; NAS is 4.4TB free)
             ORTHANC__WEB_VIEWER__SHORT_TERM_CACHE_PREFETCH_ON_INSTANCE_STORED: "true"
             ORTHANC__WEB_VIEWER__INSTANCE_INFO_CACHE_ENABLED: "true"
             ORTHANC__WEB_VIEWER__HIGH_QUALITY_IMAGE_PRELOADING_ENABLED: "true"
