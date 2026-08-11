@@ -161,7 +161,11 @@ function getAuthHeader() {
   return "Basic " + Buffer.from(`${s.orthancUsername}:${s.orthancPassword}`).toString("base64");
 }
 
-async function orthancGet(path, timeoutMs = 900000) {
+async function orthancGet(path, timeoutMs = 60000) {
+  // Default 60s (was 15 min!): a hanging /osimis-viewer/series request
+  // previously stalled the whole preload job for a quarter of an hour.
+  // Viewer endpoints either answer in seconds or they're dead — a 60s
+  // abort plus the per-series catch lets runJob skip-and-continue.
   const url = getOrthancBaseUrl() + path;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -180,7 +184,9 @@ async function orthancGet(path, timeoutMs = 900000) {
 }
 
 /** Fetch a binary resource (viewer image) to warm the viewer plugin cache */
-async function orthancWarm(path, timeoutMs = 900000) {
+async function orthancWarm(path, timeoutMs = 120000) {
+  // Default 2 min (was 15 min) — same reasoning as orthancGet: a single
+  // hanging warm request must not freeze the whole series for 15 minutes.
   const url = getOrthancBaseUrl() + path;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -416,7 +422,7 @@ async function runJob(job) {
       const WARM_CONCURRENCY = 4;
       try {
         console.log(
-          `[PRELOAD] ${seriesId.slice(0, 8)} frames=${frameTuples.length} small=${isSmallSeries} q=${suffixes.join(",")} -> ${toWarm.join(",")} c=${WARM_CONCURRENCY}`
+          `[PRELOAD] ${studyId.slice(0, 8)} ${seriesId.slice(0, 8)} frames=${frameTuples.length} small=${isSmallSeries} q=${suffixes.join(",")} -> ${toWarm.join(",")} c=${WARM_CONCURRENCY}`
         );
         // Build the flat warm list (frame x quality), then drain it through a
         // small worker pool. Per-request errors are counted, not fatal.
@@ -448,21 +454,30 @@ async function runJob(job) {
         );
         if (warmErrors > 0) {
           console.log(
-            `[PRELOAD] ${seriesId.slice(0, 8)} ${warmErrors}/${requests.length} warm requests failed`
+            `[PRELOAD] ${studyId.slice(0, 8)} ${seriesId.slice(0, 8)} ${warmErrors}/${requests.length} warm requests failed`
           );
         }
         // Large series: also warm the FIRST and MIDDLE instances at FULL
         // quality — the viewer opens a series on frame 0 (first instance),
-        // and the middle is the classic representative.
+        // and the middle is the classic representative. Parallel + 2-min
+        // timeouts so a hanging tail request can't stall the job.
         if (!isSmallSeries && tuples.length) {
+          const tail = [];
           for (const pick of [tuples[0], tuples[Math.floor(tuples.length / 2)]]) {
             const pickId = Array.isArray(pick) ? pick[0] : pick;
             if (pickId) {
               for (const suffix of suffixes) {
-                await orthancWarm(`/osimis-viewer/images/${pickId}/0/${suffix}`);
+                tail.push(`/osimis-viewer/images/${pickId}/0/${suffix}`);
               }
             }
           }
+          await Promise.all(
+            tail.map((u) =>
+              orthancWarm(u).catch((e) => {
+                job.error = job.error || e.message;
+              })
+            )
+          );
         }
         job.doneInstances += 1;
       } catch (e) {
