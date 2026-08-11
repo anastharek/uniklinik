@@ -17,6 +17,15 @@ const Options = require("../model/Options");
  *  warms nothing. So we warm ONLY the qualities the series actually supports
  *  (fallback to the old pixeldata+medium+high triple when the list is absent).
  *
+ *  DEEP WARM (2026-08-11 v2): scrolling a series was still slow because only
+ *  1 image/series was warmed. Now:
+ *   - Small series (<= SMALL_SERIES_FRAMES total frames, e.g. cine loops):
+ *     EVERY frame warmed at every supported quality -> instant scroll.
+ *   - Large series (rotational angio etc.): EVERY frame warmed at the fastest
+ *     preview quality (low when available — instant blurry preview, then the
+ *     viewer sharpens with its progressive lossless load), plus the middle
+ *     frame at full quality. Capped per series by MAX_FRAMES_PER_SERIES.
+ *
  * Strategy per study:
  *  Phase 1: warm /osimis-viewer/studies/{id} (study metadata the viewer fetches first)
  *  Phase 2: per series: /osimis-viewer/series/{id} metadata
@@ -354,46 +363,78 @@ async function runJob(job) {
       const instances = (series && series.instances) || [];
       job.totalInstances += instances.length;
 
-      // Warm one representative image per series (middle instance) via the
-      // viewer's own image endpoints so the plugin cache is populated.
-      // Only warm the qualities the series actually supports — the viewer's
-      // quality->URL mapping (verified in app.js):
-      //   lossless -> high-quality, low -> low-quality,
-      //   medium -> medium-quality, pixeldata -> pixeldata-quality
-      const middle = Math.floor(instances.length / 2);
-      const target = instances[middle];
-      const instanceId = Array.isArray(target) ? target[0] : target;
-      if (instanceId) {
-        const frameIndex = 0;
-        const QUALITY_URL = {
-          pixeldata: "pixeldata-quality",
-          lossless: "high-quality",
-          low: "low-quality",
-          medium: "medium-quality",
-          high: "high-quality",
-        };
-        const avail = Array.isArray(series.availableQualities)
-          ? series.availableQualities
-          : [];
-        // Warm each supported quality once; fall back to the legacy triple
-        // when the plugin didn't report an availability list.
-        const toWarm =
-          avail.length > 0
-            ? [...new Set(avail.map((q) => QUALITY_URL[q]).filter(Boolean))]
-            : ["pixeldata-quality", "medium-quality", "high-quality"];
-        try {
-          console.log(
-            `[PRELOAD] ${seriesId.slice(0, 8)} qualities=${avail.join("/")} -> ${toWarm.join(",")}`
-          );
+      // ===================================================================
+      // Warm frames of this series.
+      // instances tuples are [instanceId, frameIndex, frameCount].
+      // Small series (cine loops): warm EVERY frame at every supported
+      // quality -> scrolling is instant. Large series: warm every frame at
+      // the fastest preview quality (low when available) so the pane always
+      // pops instantly, plus the middle frame at full quality.
+      // ===================================================================
+      const QUALITY_URL = {
+        pixeldata: "pixeldata-quality",
+        lossless: "high-quality",
+        low: "low-quality",
+        medium: "medium-quality",
+        high: "high-quality",
+      };
+      const SMALL_SERIES_FRAMES = 16;
+      const MAX_FRAMES_PER_SERIES = 1000;
+
+      const tuples = instances; // [ [id, frameIndex, frameCount], ... ]
+      const totalFrames = tuples.reduce(
+        (sum, t) => sum + (Array.isArray(t) ? t[2] || 1 : 1),
+        0
+      );
+      const isSmallSeries = totalFrames <= SMALL_SERIES_FRAMES;
+
+      const avail = Array.isArray(series.availableQualities)
+        ? series.availableQualities
+        : [];
+      // Supported quality suffixes for this series (viewer's mapping above).
+      let suffixes = avail.length
+        ? [...new Set(avail.map((q) => QUALITY_URL[q]).filter(Boolean))]
+        : ["pixeldata-quality", "medium-quality", "high-quality"];
+      // Put the fastest preview quality first (low when available).
+      const lowIdx = suffixes.indexOf("low-quality");
+      if (lowIdx > 0) suffixes = [suffixes.splice(lowIdx, 1)[0], ...suffixes];
+
+      const frameTuples = []; // flattened [instanceId, frame] list
+      for (const t of tuples) {
+        const instId = Array.isArray(t) ? t[0] : t;
+        const n = Array.isArray(t) ? t[2] || 1 : 1;
+        for (let f = 0; f < n; f++) frameTuples.push([instId, f]);
+      }
+      const capped = Math.min(frameTuples.length, MAX_FRAMES_PER_SERIES);
+      const toWarm = isSmallSeries ? suffixes : [suffixes[0]];
+      try {
+        console.log(
+          `[PRELOAD] ${seriesId.slice(0, 8)} frames=${frameTuples.length} small=${isSmallSeries} q=${suffixes.join(",")} -> ${toWarm.join(",")}`
+        );
+        let warmed = 0;
+        for (const [instId, frame] of frameTuples) {
+          if (warmed >= capped) break;
           for (const suffix of toWarm) {
-            await orthancWarm(
-              `/osimis-viewer/images/${instanceId}/${frameIndex}/${suffix}`
-            );
+            await orthancWarm(`/osimis-viewer/images/${instId}/${frame}/${suffix}`);
           }
-          job.doneInstances += 1;
-        } catch (e) {
-          job.error = job.error || e.message;
+          warmed += 1;
         }
+        // Large series: also warm the FIRST and MIDDLE instances at FULL
+        // quality — the viewer opens a series on frame 0 (first instance),
+        // and the middle is the classic representative.
+        if (!isSmallSeries && tuples.length) {
+          for (const pick of [tuples[0], tuples[Math.floor(tuples.length / 2)]]) {
+            const pickId = Array.isArray(pick) ? pick[0] : pick;
+            if (pickId) {
+              for (const suffix of suffixes) {
+                await orthancWarm(`/osimis-viewer/images/${pickId}/0/${suffix}`);
+              }
+            }
+          }
+        }
+        job.doneInstances += 1;
+      } catch (e) {
+        job.error = job.error || e.message;
       }
       job.doneSeries += 1;
     } catch (e) {
