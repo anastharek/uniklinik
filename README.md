@@ -66,25 +66,59 @@ Production-ready PACS (Picture Archiving and Communication System) stack for **P
 
 ---
 
-## Quick Deploy
+## Quick Deploy (new server)
 
 ```bash
-# 1. Clone or copy the project
-cd "/media/svr04pm01/NAS1/PACS RESEARCH/PUTRACNS"
+# 1. Get the code (private repo)
+git clone git@github.com:anastharek/PUTRACNSPACS.git
+cd PUTRACNSPACS
 
-# 2. Create required directories
-mkdir -p ORTHANC orthanc3
+# 2. Create the secrets file — REQUIRED, the stack reads credentials from .env
+cp .env.example .env
+#    then edit .env and set real values:
+#    - TOKEN_SECRET:        openssl rand -base64 32
+#    - ORTHANC_USERNAME / ORTHANC_PASSWORD: pick a new user/password pair
+#    - ADMIN_PASSWORD:      password for the preferences endpoint
+#    Generate NEW credentials per deployment — never reuse old ones.
 
-# 3. Start the stack
+# 3. Create data directories (Docker auto-creates missing ones, but
+#    pre-creating avoids root-owned dirs on some setups)
+mkdir -p ORTHANC orthanc3 postgres-data
+
+# 4. Build & start (first build ~10–20 min: React + OHIF viewer + backend)
 docker compose up -d --build
 
-# 4. Check status
+# 5. Verify
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:9156/          # app → 200
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8475/system    # orthanc → 200
 docker compose ps
-docker compose logs -f orthanc
 ```
 
-### First-time build time
-~10–20 minutes (builds React frontend + OHIF viewer + Node backend Docker images).
+### First-time setup (fresh database)
+
+A fresh PostgreSQL has **no users and no AI routing rules**. After the stack is up:
+
+1. **Create your user account** through the app UI (register/login page).
+2. **Re-add the AI auto-routing rule** — AI series generation won't run without it:
+   ```bash
+   docker exec postgres-stroke5.1 psql -U postgres -d padimedical -c \
+   "INSERT INTO \"AiAutorouter\" (id, modality, series_description, link, \"createdAt\", \"updatedAt\")
+    VALUES (gen_random_uuid(), 'MR', 'sb1000', 'https://mri-putra-stroke.anzverse.com/', now(), now());"
+   ```
+3. **Optional — carry over existing data** (users, preload records, AI records):
+   ```bash
+   # on the OLD server:
+   docker exec postgres-stroke5.1 pg_dump -U postgres -d padimedical > padimedical.sql
+   # copy the dump to the new server, then:
+   docker exec -i postgres-stroke5.1 psql -U postgres -d padimedical < padimedical.sql
+   ```
+
+### Deploy notes
+
+- **Secrets never live in the repo** — everything credential-related comes from the gitignored `.env` (see `.env.example`).
+- **nginx/ is not in this repository** (gitignored) — SSL/HTTPS is terminated by your own Nginx Proxy Manager / reverse proxy; the "Nginx Proxy Manager Setup" section below has optional viewer-asset caching snippets.
+- Container names (`pmstroke5.1`, `orthanc-pmstroke5.1`, `postgres-stroke5.1`) are fixed in the compose — if you run **two stacks on one host**, rename them first (search for `#tukar` comments).
+- Ports: Orthanc HTTP `8475`, Orthanc DICOM `4371`, app `9156`, PostgreSQL `5490`.
 
 ---
 
@@ -145,7 +179,8 @@ Key settings you may need to change for a new deployment:
 ```yaml
 # In the padipacs service:
 DOMAIN_ADDRESS: "stroke.padimedical.com"   # Your domain
-TOKEN_SECRET: "..."                        # Generate: openssl rand -base64 32
+# NOTE: TOKEN_SECRET, ORTHANC_USERNAME, ORTHANC_PASSWORD and ADMIN_PASSWORD
+# are read from the gitignored .env file (see .env.example), NOT the compose.
 
 # In the orthanc service:
 ORTHANC__NAME: "STROKE"                    # Server name shown in UI
