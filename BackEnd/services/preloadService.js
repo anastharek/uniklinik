@@ -407,17 +407,49 @@ async function runJob(job) {
       }
       const capped = Math.min(frameTuples.length, MAX_FRAMES_PER_SERIES);
       const toWarm = isSmallSeries ? suffixes : [suffixes[0]];
+      // v3 (2026-08-11): warm frames in parallel — Orthanc has 12 cores and
+      // sequential warming of big rotational series (1,244 frames) took ~40-60
+      // min for a whole study. 4 concurrent requests cut that to ~10-15 min.
+      // Real ingest floods are still handled by the ingest-rate pause in the
+      // pump (isOrthancBusy); the CPU-only flood alert was fixed to require
+      // an actual ingest rate so preload warming doesn't trip false alarms.
+      const WARM_CONCURRENCY = 4;
       try {
         console.log(
-          `[PRELOAD] ${seriesId.slice(0, 8)} frames=${frameTuples.length} small=${isSmallSeries} q=${suffixes.join(",")} -> ${toWarm.join(",")}`
+          `[PRELOAD] ${seriesId.slice(0, 8)} frames=${frameTuples.length} small=${isSmallSeries} q=${suffixes.join(",")} -> ${toWarm.join(",")} c=${WARM_CONCURRENCY}`
         );
-        let warmed = 0;
+        // Build the flat warm list (frame x quality), then drain it through a
+        // small worker pool. Per-request errors are counted, not fatal.
+        const requests = [];
         for (const [instId, frame] of frameTuples) {
-          if (warmed >= capped) break;
+          if (requests.length >= capped * toWarm.length) break;
           for (const suffix of toWarm) {
-            await orthancWarm(`/osimis-viewer/images/${instId}/${frame}/${suffix}`);
+            requests.push(`/osimis-viewer/images/${instId}/${frame}/${suffix}`);
           }
-          warmed += 1;
+        }
+        let next = 0;
+        let warmErrors = 0;
+        const worker = async () => {
+          while (next < requests.length) {
+            const url = requests[next++];
+            try {
+              await orthancWarm(url);
+            } catch (e) {
+              warmErrors += 1;
+              job.error = job.error || e.message;
+            }
+          }
+        };
+        await Promise.all(
+          Array.from(
+            { length: Math.min(WARM_CONCURRENCY, requests.length) },
+            worker
+          )
+        );
+        if (warmErrors > 0) {
+          console.log(
+            `[PRELOAD] ${seriesId.slice(0, 8)} ${warmErrors}/${requests.length} warm requests failed`
+          );
         }
         // Large series: also warm the FIRST and MIDDLE instances at FULL
         // quality — the viewer opens a series on frame 0 (first instance),
