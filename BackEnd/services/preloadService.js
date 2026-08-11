@@ -8,8 +8,14 @@ const Options = require("../model/Options");
  * Viewer endpoints (verified from /osimis-viewer/app/js/app.js):
  *  - /osimis-viewer/studies/{id}            study load (series list) — SLOW (0.3-1.5s)
  *  - /osimis-viewer/series/{id}             series metadata + instances
- *  - /osimis-viewer/images/{inst}/{frame}/pixeldata-quality   raw pixels (first render)
- *  - /osimis-viewer/images/{inst}/{frame}/low|medium|high-quality (display variants)
+ *  - /osimis-viewer/images/{inst}/{frame}/{quality}-quality  image display
+ *
+ *  QUALITY-AWARE WARMING (2026-08-11): the viewer reads each series'
+ *  `availableQualities` and maps: LOSSLESS->high-quality, LOW->low-quality,
+ *  MEDIUM->medium-quality, PIXELDATA->pixeldata-quality. XA/angio series only
+ *  support ["low","lossless"] — warming pixeldata/medium there 404s/hangs and
+ *  warms nothing. So we warm ONLY the qualities the series actually supports
+ *  (fallback to the old pixeldata+medium+high triple when the list is absent).
  *
  * Strategy per study:
  *  Phase 1: warm /osimis-viewer/studies/{id} (study metadata the viewer fetches first)
@@ -349,22 +355,41 @@ async function runJob(job) {
       job.totalInstances += instances.length;
 
       // Warm one representative image per series (middle instance) via the
-      // viewer's own image endpoints so the plugin cache is populated
+      // viewer's own image endpoints so the plugin cache is populated.
+      // Only warm the qualities the series actually supports — the viewer's
+      // quality->URL mapping (verified in app.js):
+      //   lossless -> high-quality, low -> low-quality,
+      //   medium -> medium-quality, pixeldata -> pixeldata-quality
       const middle = Math.floor(instances.length / 2);
       const target = instances[middle];
       const instanceId = Array.isArray(target) ? target[0] : target;
       if (instanceId) {
         const frameIndex = 0;
+        const QUALITY_URL = {
+          pixeldata: "pixeldata-quality",
+          lossless: "high-quality",
+          low: "low-quality",
+          medium: "medium-quality",
+          high: "high-quality",
+        };
+        const avail = Array.isArray(series.availableQualities)
+          ? series.availableQualities
+          : [];
+        // Warm each supported quality once; fall back to the legacy triple
+        // when the plugin didn't report an availability list.
+        const toWarm =
+          avail.length > 0
+            ? [...new Set(avail.map((q) => QUALITY_URL[q]).filter(Boolean))]
+            : ["pixeldata-quality", "medium-quality", "high-quality"];
         try {
-          await orthancWarm(
-            `/osimis-viewer/images/${instanceId}/${frameIndex}/pixeldata-quality`
+          console.log(
+            `[PRELOAD] ${seriesId.slice(0, 8)} qualities=${avail.join("/")} -> ${toWarm.join(",")}`
           );
-          await orthancWarm(
-            `/osimis-viewer/images/${instanceId}/${frameIndex}/medium-quality`
-          );
-          await orthancWarm(
-            `/osimis-viewer/images/${instanceId}/${frameIndex}/high-quality`
-          );
+          for (const suffix of toWarm) {
+            await orthancWarm(
+              `/osimis-viewer/images/${instanceId}/${frameIndex}/${suffix}`
+            );
+          }
           job.doneInstances += 1;
         } catch (e) {
           job.error = job.error || e.message;
