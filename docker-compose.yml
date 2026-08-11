@@ -48,7 +48,7 @@ services:
             PG_STORAGE_ENABLED: "true"
             PG_INDEX_ENABLED: "true"
         volumes:
-            - /home/svr04pm01/Desktop/POSTGRES FOLDER/PACS RESEARCH/PUTRACNS/POSTGRES:/var/lib/postgresql/data
+            - ./postgres-data:/var/lib/postgresql/data
         restart: unless-stopped
 
     orthanc:

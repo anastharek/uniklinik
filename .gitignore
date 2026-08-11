@@ -11,6 +11,7 @@ ohif/Viewers/platform/viewer/dist/
 # Docker / data
 data/
 orthanc3/
+postgres-data/
 
 # IDE
 .idea/
