@@ -110,6 +110,45 @@ const getTodayRecordedSeriesIds=async()=>{
     return new Set(records.map(r=>r.series_id));
 };
 
+/**
+ * Count images in the AI output series for this study+type, or null if none.
+ * (2026-08-11: AI output validation — the AI app returns 2 images per source
+ * frame; a suspiciously small count means the run failed.)
+ */
+const getAiOutputCount=async(auth,studyUID,desc)=>{
+    if(!studyUID) return null;
+    try{
+        const res=await axios.post('http://localhost:4000/api/tools/find',{
+            Level:"Series",
+            Query:{StudyInstanceUID:studyUID,SeriesDescription:`${desc} (AI *`},
+            Expand:true
+        },{headers:auth.headers});
+        const arr=res.data||[];
+        if(!arr.length) return null;
+        return arr.reduce((n,s)=>n+(Array.isArray(s.Instances)?s.Instances.length:0),0);
+    }catch(e){
+        return null;
+    }
+};
+
+/** Delete the AI output series for this study+type (bad-output cleanup). */
+const deleteAiOutput=async(auth,studyUID,desc)=>{
+    if(!studyUID) return;
+    try{
+        const res=await axios.post('http://localhost:4000/api/tools/find',{
+            Level:"Series",
+            Query:{StudyInstanceUID:studyUID,SeriesDescription:`${desc} (AI *`},
+            Short:true
+        },{headers:auth.headers});
+        for(const id of (res.data||[])){
+            await axios.delete(`http://localhost:4000/api/series/${id}`,{headers:auth.headers});
+            console.log(`[generateAISeries] deleted bad AI output series ${id} (${desc})`);
+        }
+    }catch(e){
+        console.log(`[generateAISeries] WARN failed to delete bad AI output for ${desc}: ${e.message}`);
+    }
+};
+
 const processSeries=async(conf,entry,auth)=>{
     let seriesID=entry.seriesID;
     let series;
@@ -138,11 +177,13 @@ const processSeries=async(conf,entry,auth)=>{
     // input can never create a second AI output again. Matching is scoped to
     // conf.series_description so adding a NEW rule (e.g. "swi mip") is NOT
     // blocked by an existing different AI series (e.g. "sb1000").
+    // studyUID is hoisted so the output-validation step below can reuse it.
+    let studyUID = null;
     try {
         // Orthanc /tools/find does NOT accept the internal ParentStudy key in
         // this build ("Unknown DICOM tag") -> resolve StudyInstanceUID first.
         const studyRes = await axios.get(`http://localhost:4000/api/studies/${series.ParentStudy}`, { headers: auth.headers });
-        const studyUID = (studyRes.data && studyRes.data.MainDicomTags && studyRes.data.MainDicomTags.StudyInstanceUID) || null;
+        studyUID = (studyRes.data && studyRes.data.MainDicomTags && studyRes.data.MainDicomTags.StudyInstanceUID) || null;
         if (studyUID) {
             const existing = await axios.post(`http://localhost:4000/api/tools/find`, {
                 Level: "Series",
@@ -168,6 +209,27 @@ const processSeries=async(conf,entry,auth)=>{
 
     try{
         await GenerateSeries({tokenOrthancJs:auth.TOKEN},conf.link,[series.ID],series.ParentStudy,conf.name,conf.series_description,conf.modality);
+
+        // ================================================================
+        // AI OUTPUT VALIDATION (2026-08-11)
+        // The AI app returns 2 images per source frame (_processed +
+        // _summary). Intermittently it returns only ONE frame's output
+        // (e.g. 2 images from a 58-frame source — seen 11-Aug 20:12 and
+        // 10-Aug 23:12). A suspiciously small output is a failed run:
+        // delete the bad AI series (so the dedup rule above can't block a
+        // retry forever) and record "failed" (02:00 full scan retries it).
+        // ================================================================
+        const srcCount = Array.isArray(series.Instances) ? series.Instances.length : 0;
+        const outCount = await getAiOutputCount(auth, studyUID, conf.series_description);
+        if (studyUID && outCount === null) {
+            throw new Error(`AI output series not found after generation (${conf.series_description})`);
+        }
+        if (studyUID && srcCount > 0 && outCount < srcCount) {
+            console.log(`[generateAISeries] ALERT ${conf.series_description} AI output suspicious: ${outCount} images from ${srcCount} source frames (expected ~${srcCount * 2}) — deleting bad AI series, will retry`);
+            await deleteAiOutput(auth, studyUID, conf.series_description);
+            throw new Error(`AI output too small (${outCount} < ${srcCount} source frames)`);
+        }
+
         if (instanceID) {
             await db.AiSeriesRecord.create({
                 series_id:seriesID,
@@ -175,7 +237,7 @@ const processSeries=async(conf,entry,auth)=>{
                 status:"completed"
             });
         }
-        console.log(`[generateAISeries] processed series ${seriesID} (${conf.series_description}/${conf.modality})`);
+        console.log(`[generateAISeries] processed series ${seriesID} (${conf.series_description}/${conf.modality}) — AI output ${outCount} images from ${srcCount} source frames`);
     }catch(e){
         // record failures too, so the daily full scan retries them but the
         // 2-min incremental scan doesn't hammer failing series forever
@@ -200,28 +262,34 @@ const generateAiSeries=async()=>{
     let dateStr=moment.tz('Asia/Kuala_Lumpur').format('YYYYMMDD');
     let todaysIDs=await getTodayRecordedSeriesIds();
     for(let conf of allConf){
-        let query={
-            "0008103e":conf.series_description,
-            "00080060":conf.modality,
-            "00080020":dateStr //StudyDate = today
-        };
-        let instances=await findAllInstances(query,auth.headers);
-        let parentIDs=[];
-        // map seriesID -> first instance ID so processSeries can record
-        // a valid instance_id (NOT NULL column; null previously caused
-        // every record insert to fail -> infinite reprocessing flood)
-        let instanceBySeries={};
-        for(let instance of instances){
-            if(todaysIDs.has(instance.ParentSeries)) continue;
-            if(!parentIDs.includes(instance.ParentSeries)){
-                parentIDs.push(instance.ParentSeries);
-                instanceBySeries[instance.ParentSeries]=instance.ID;
+        // One bad lookup (5xx under load) must not abort every other config
+        // — catch per config and keep going (2026-08-11).
+        try{
+            let query={
+                "0008103e":conf.series_description,
+                "00080060":conf.modality,
+                "00080020":dateStr //StudyDate = today
+            };
+            let instances=await findAllInstances(query,auth.headers);
+            let parentIDs=[];
+            // map seriesID -> first instance ID so processSeries can record
+            // a valid instance_id (NOT NULL column; null previously caused
+            // every record insert to fail -> infinite reprocessing flood)
+            let instanceBySeries={};
+            for(let instance of instances){
+                if(todaysIDs.has(instance.ParentSeries)) continue;
+                if(!parentIDs.includes(instance.ParentSeries)){
+                    parentIDs.push(instance.ParentSeries);
+                    instanceBySeries[instance.ParentSeries]=instance.ID;
+                }
             }
-        }
-        for(let seriesID of parentIDs){
-            if(todaysIDs.has(seriesID)) continue;
-            await processSeries(conf,{seriesID,instanceID:instanceBySeries[seriesID]||null,parentStudy:null},auth);
-            todaysIDs.add(seriesID);
+            for(let seriesID of parentIDs){
+                if(todaysIDs.has(seriesID)) continue;
+                await processSeries(conf,{seriesID,instanceID:instanceBySeries[seriesID]||null,parentStudy:null},auth);
+                todaysIDs.add(seriesID);
+            }
+        }catch(confErr){
+            console.log(`[generateAISeries] ERROR config ${conf.series_description}/${conf.modality}: ${confErr.message}`);
         }
     }
 }
@@ -237,16 +305,20 @@ const generateAiSeriesFull=async()=>{
     const auth=await getAuth();
     let completed=await getCompletedSeriesIds();
     for(let conf of allConf){
-        let query={
-            "0008103e":conf.series_description,
-            "00080060":conf.modality
-        };
-        let entries=await findAllSeries(query,auth.headers);
-        let pending=entries.filter(e=>!completed.has(e.seriesID));
-        console.log(`[generateAISeries:full] ${conf.series_description}/${conf.modality}: found ${entries.length} series, ${pending.length} pending (new or previously failed)`);
-        for(let entry of pending){
-            await processSeries(conf,entry,auth);
-            completed.add(entry.seriesID);
+        try{
+            let query={
+                "0008103e":conf.series_description,
+                "00080060":conf.modality
+            };
+            let entries=await findAllSeries(query,auth.headers);
+            let pending=entries.filter(e=>!completed.has(e.seriesID));
+            console.log(`[generateAISeries:full] ${conf.series_description}/${conf.modality}: found ${entries.length} series, ${pending.length} pending (new or previously failed)`);
+            for(let entry of pending){
+                await processSeries(conf,entry,auth);
+                completed.add(entry.seriesID);
+            }
+        }catch(confErr){
+            console.log(`[generateAISeries:full] ERROR config ${conf.series_description}/${conf.modality}: ${confErr.message}`);
         }
     }
 }
