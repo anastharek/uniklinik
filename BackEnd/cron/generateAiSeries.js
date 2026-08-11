@@ -218,13 +218,18 @@ const processSeries=async(conf,entry,auth)=>{
         // 10-Aug 23:12). A suspiciously small output is a failed run:
         // delete the bad AI series (so the dedup rule above can't block a
         // retry forever) and record "failed" (02:00 full scan retries it).
+        // SKIPPED for the LVO detection app (2026-08-12): it legitimately
+        // returns few detection images per series, not 2 per source frame,
+        // so the "too small" rule would delete valid outputs. The
+        // "no output at all" check below still applies to everything.
         // ================================================================
+        const strictOutputCheck = !conf.link.includes('lvo-detection');
         const srcCount = Array.isArray(series.Instances) ? series.Instances.length : 0;
         const outCount = await getAiOutputCount(auth, studyUID, conf.series_description);
         if (studyUID && outCount === null) {
             throw new Error(`AI output series not found after generation (${conf.series_description})`);
         }
-        if (studyUID && srcCount > 0 && outCount < srcCount) {
+        if (strictOutputCheck && studyUID && srcCount > 0 && outCount < srcCount) {
             console.log(`[generateAISeries] ALERT ${conf.series_description} AI output suspicious: ${outCount} images from ${srcCount} source frames (expected ~${srcCount * 2}) — deleting bad AI series, will retry`);
             await deleteAiOutput(auth, studyUID, conf.series_description);
             throw new Error(`AI output too small (${outCount} < ${srcCount} source frames)`);
