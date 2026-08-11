@@ -1,4 +1,4 @@
-# PUTRACNS — PadiMedical PACS Stack
+# PUTRACNSPACS — PadiMedical PACS Stack
 
 Production-ready PACS (Picture Archiving and Communication System) stack for **PUTRA CNS** built on Orthanc, with PadiMedical backend, OHIF/Stone web viewers, PostgreSQL, Redis, and Nginx caching.
 

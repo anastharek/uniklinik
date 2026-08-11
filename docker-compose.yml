@@ -16,8 +16,8 @@ services:
             TZ: "Asia/Kuala_Lumpur"
             ORTHANC_ADDRESS: "http://orthanc"
             ORTHANC_PORT: "8042"
-            ORTHANC_USERNAME: "REDACTED"
-            ORTHANC_PASSWORD: "REDACTED"
+            ORTHANC_USERNAME: "${ORTHANC_USERNAME}"
+            ORTHANC_PASSWORD: "${ORTHANC_PASSWORD}"
             DOMAIN_PROTOCOL: "https"
             DOMAIN_ADDRESS: "stroke.padimedical.com" #tukar
             REDIS_HOST: "redis"
@@ -25,6 +25,7 @@ services:
             REDIS_PASSWORD: ""
             NODE_ENV: "production"
             TOKEN_SECRET: "${TOKEN_SECRET}"
+            ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
             DB_HOST: "postgres"
             DB_PORT: 5432
             DB_NAME: "padimedical"
@@ -86,8 +87,7 @@ services:
             ORTHANC__AUTHENTICATION_ENABLE: "false"
             ORTHANC__AUTHENTICATION_ENABLED: "false"
 
-            ORTHANC__REGISTERED_USERS: |
-                {"REDACTED": "REDACTED"}
+            ORTHANC__REGISTERED_USERS: '{"${ORTHANC_USERNAME}": "${ORTHANC_PASSWORD}"}'
 
             ORTHANC__DICOM_WEB__ENABLE: "true"
             ORTHANC__DICOM_WEB__ROOT: "/dicom-web/"

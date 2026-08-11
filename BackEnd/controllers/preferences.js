@@ -2,7 +2,9 @@ const fs = require('fs');
 const path = require('path');
 
 const PREFS_FILE = path.join(__dirname, '..', 'preferences.json');
-const ADMIN_PASSWORD = 'REDACTED';
+// Admin password for the preferences endpoint — read from env (set in
+// .env / docker-compose.yml; never hardcoded in source).
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 function _readPrefs() {
   try {
@@ -31,7 +33,7 @@ async function getGlobalPreferences(req, res) {
 /**
  * POST /api/preferences/global
  * Saves global preferences. Requires admin password in body.
- * Body: { password: "REDACTED", preferences: { blockedSeries: [...] } }
+ * Body: { password: "<ADMIN_PASSWORD>", preferences: { blockedSeries: [...] } }
  */
 async function saveGlobalPreferences(req, res) {
   const { password, preferences } = req.body;
