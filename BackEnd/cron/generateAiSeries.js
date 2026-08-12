@@ -5,6 +5,14 @@ const Users=require("../model/Users");
 const jwt=require('jsonwebtoken');
 const GenerateSeries=require('../utils/generateAISeries');
 
+// Overlap guard (2026-08-12): the 2-min incremental cron is NOT awaited by
+// node-cron, so a run that takes longer than 2 minutes overlaps the next
+// tick — two runs then pass the dedup check at the same time and BOTH
+// generate an AI series for the same source -> duplicates. A module-level
+// flag makes overlapping ticks no-ops.
+let aiRunInProgress = false;
+let aiFullRunInProgress = false;
+
 const getAuth=async()=>{
     const userObject = new Users("admin");
     let infosUser = await userObject.getUserRight();
@@ -185,18 +193,36 @@ const processSeries=async(conf,entry,auth)=>{
         const studyRes = await axios.get(`http://localhost:4000/api/studies/${series.ParentStudy}`, { headers: auth.headers });
         studyUID = (studyRes.data && studyRes.data.MainDicomTags && studyRes.data.MainDicomTags.StudyInstanceUID) || null;
         if (studyUID) {
-            const existing = await axios.post(`http://localhost:4000/api/tools/find`, {
-                Level: "Series",
-                Query: { StudyInstanceUID: studyUID, SeriesDescription: `${conf.series_description} (AI *` },
-                Short: true,
-                Limit: 1
-            }, { headers: auth.headers });
+            let existing = null;
+            try {
+                // Match ANY AI-output suffix — "(AI …" AND "(PUTRA LVO
+                // DETECTION …" — so the two naming styles can't both be
+                // generated for the same (study, type).
+                existing = await axios.post(`http://localhost:4000/api/tools/find`, {
+                    Level: "Series",
+                    Query: { StudyInstanceUID: studyUID, SeriesDescription: `${conf.series_description} (*` },
+                    Short: true,
+                    Limit: 1
+                }, { headers: auth.headers });
+            } catch (findErr) {
+                // FAIL-SAFE (2026-08-12): if the dedup lookup itself errors,
+                // do NOT generate. Falling through here is what created the
+                // duplicate AI series (8x thumble in one study) — the 02:00
+                // full scan retries anything skipped.
+                console.log(`[generateAISeries] WARN dedup find failed for ${seriesID}: ${findErr.message} — skipping to avoid duplicate`);
+                return;
+            }
             if (existing.data && existing.data.length > 0) {
+                // AI series already exists -> mark the source done and skip.
+                // findOrCreate (not create): series_id is UNIQUE in the DB
+                // (unique_series_id) even though the model doesn't declare it;
+                // a bare create on the second call throws "Validation error",
+                // which the old catch swallowed as "dedup check failed" and
+                // then fell through to generate a duplicate.
                 if (instanceID) {
-                    await db.AiSeriesRecord.create({
-                        series_id: seriesID,
-                        instance_id: instanceID,
-                        status: "completed"
+                    await db.AiSeriesRecord.findOrCreate({
+                        where: { series_id: seriesID },
+                        defaults: { instance_id: instanceID, status: "completed" }
                     });
                 }
                 console.log(`[generateAISeries] AI series already exists for study ${series.ParentStudy}, skipped ${seriesID}`);
@@ -204,7 +230,9 @@ const processSeries=async(conf,entry,auth)=>{
             }
         }
     } catch (dedupErr) {
-        console.log(`[generateAISeries] WARN dedup check failed for ${seriesID}: ${dedupErr.message}`);
+        // FAIL-SAFE: never fall through to generation when dedup is uncertain
+        console.log(`[generateAISeries] WARN dedup check failed for ${seriesID}: ${dedupErr.message} — skipping to avoid duplicate`);
+        return;
     }
 
     try{
@@ -236,10 +264,9 @@ const processSeries=async(conf,entry,auth)=>{
         }
 
         if (instanceID) {
-            await db.AiSeriesRecord.create({
-                series_id:seriesID,
-                instance_id:instanceID,
-                status:"completed"
+            await db.AiSeriesRecord.findOrCreate({
+                where: { series_id: seriesID },
+                defaults: { instance_id: instanceID, status: "completed" }
             });
         }
         console.log(`[generateAISeries] processed series ${seriesID} (${conf.series_description}/${conf.modality}) — AI output ${outCount} images from ${srcCount} source frames`);
@@ -247,10 +274,9 @@ const processSeries=async(conf,entry,auth)=>{
         // record failures too, so the daily full scan retries them but the
         // 2-min incremental scan doesn't hammer failing series forever
         if (instanceID) {
-            await db.AiSeriesRecord.create({
-                series_id:seriesID,
-                instance_id:instanceID,
-                status:"failed"
+            await db.AiSeriesRecord.findOrCreate({
+                where: { series_id: seriesID },
+                defaults: { instance_id: instanceID, status: "failed" }
             }).catch(err=>console.log(`[generateAISeries] WARN failed to record failure for ${seriesID}: ${err.message}`));
         }
         console.log(`[generateAISeries] FAILED series ${seriesID}: ${e.message}`);
@@ -261,6 +287,12 @@ const processSeries=async(conf,entry,auth)=>{
  * Incremental scan (every 2 min): only today's studies (StudyDate = today MYT).
  */
 const generateAiSeries=async()=>{
+    if (aiRunInProgress) {
+        console.log('[generateAISeries] previous run still active — skipping this tick (overlap guard)');
+        return;
+    }
+    aiRunInProgress = true;
+    try {
     let allConf=await db.AiAutorouter.findAll({raw:true});
     if(!allConf.length) return;
     const auth=await getAuth();
@@ -297,6 +329,9 @@ const generateAiSeries=async()=>{
             console.log(`[generateAISeries] ERROR config ${conf.series_description}/${conf.modality}: ${confErr.message}`);
         }
     }
+    } finally {
+        aiRunInProgress = false;
+    }
 }
 
 /**
@@ -305,6 +340,12 @@ const generateAiSeries=async()=>{
  * (no duplication); retries new or previously-failed series.
  */
 const generateAiSeriesFull=async()=>{
+    if (aiFullRunInProgress) {
+        console.log('[generateAISeries:full] previous run still active — skipping this tick (overlap guard)');
+        return;
+    }
+    aiFullRunInProgress = true;
+    try {
     let allConf=await db.AiAutorouter.findAll({raw:true});
     if(!allConf.length) return;
     const auth=await getAuth();
@@ -325,6 +366,9 @@ const generateAiSeriesFull=async()=>{
         }catch(confErr){
             console.log(`[generateAISeries:full] ERROR config ${conf.series_description}/${conf.modality}: ${confErr.message}`);
         }
+    }
+    } finally {
+        aiFullRunInProgress = false;
     }
 }
 
