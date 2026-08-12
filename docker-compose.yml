@@ -59,7 +59,7 @@ services:
         ports: ["8475:8042", "4371:4242"] #tukar
         restart: unless-stopped
         mem_limit: 12g
-        volumes: ["./ORTHANC:/var/lib/orthanc/db:Z"]
+        volumes: ["./ORTHANC:/var/lib/orthanc/db:Z", "./orthanc-pacs/modify.lua:/etc/orthanc/scripts/modify.lua:ro,Z"]
         environment:
             TZ: "Asia/Kuala_Lumpur"
             ORTHANC__NAME: "STROKE" #exchange
