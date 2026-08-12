@@ -145,7 +145,40 @@ async function isFresh(studyId) {
   });
   if (!rec) return false;
   const current = await getChangesLast();
-  return isRecordFresh(rec, current);
+  if (!isRecordFresh(rec, current)) return false;
+  // 2026-08-12: new series added since preload (AI output series, scanner
+  // sequences) → the record is stale for THIS study → allow re-preload.
+  if (await hasSeriesChanged(rec)) return false;
+  return true;
+}
+
+/**
+ * Current series count of a study (core Orthanc endpoint — cheap: returns
+ * the list of series IDs, no pixel data). Returns -1 if unreachable.
+ */
+async function getCurrentSeriesCount(studyId) {
+  try {
+    const series = await orthancGet(`/studies/${studyId}/series`, 15000);
+    return Array.isArray(series) ? series.length : -1;
+  } catch (e) {
+    return -1;
+  }
+}
+
+/**
+ * Did the study gain (or lose) series since it was preloaded?
+ * The AI autorouter appends "sb1000 (AI …)", "mra (AI …)", "thumble (AI …)"
+ * series and the scanner may add sequences to an already-preloaded study.
+ * The warmed data for old series is still valid, but the NEW series are
+ * cold — a series-count mismatch means the "Cached" record is stale for
+ * THIS study and a re-preload must be allowed. Returns false when the count
+ * can't be read (a transient failure must not flip the badge).
+ */
+async function hasSeriesChanged(rec) {
+  if (!rec || typeof rec.total_series !== "number") return false;
+  const current = await getCurrentSeriesCount(rec.study_id);
+  if (current < 0) return false;
+  return current !== rec.total_series;
 }
 
 function getOrthancBaseUrl() {
@@ -546,13 +579,20 @@ async function getCachedStatus(studyIds) {
   const current = await getChangesLast();
   for (const sid of studyIds) {
     const r = byId[sid];
-    const fresh = isRecordFresh(r, current);
+    let fresh = isRecordFresh(r, current);
+    let seriesChanged = false;
+    if (fresh && r) {
+      // 2026-08-12: new series (AI output / extra sequences) → stale badge
+      seriesChanged = await hasSeriesChanged(r);
+      if (seriesChanged) fresh = false;
+    }
     out[sid] = {
       cached: !!fresh,
       cachedAt: r ? r.cached_at : null,
       totalSeries: r ? r.total_series : 0,
       changeSeq: r ? r.change_seq : null,
       currentChangeSeq: current,
+      seriesChanged,
     };
   }
   return out;
