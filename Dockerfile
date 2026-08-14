@@ -39,7 +39,8 @@ RUN yarn config set registry https://registry.npmjs.org \
  && yarn config set prefer-offline true \
  && yarn config set progress false
 COPY ./ohif/Viewers .
-RUN yarn install --network-timeout 600000 --frozen-lockfile \
+RUN --mount=type=cache,target=/yarn-cache \
+    YARN_CACHE_FOLDER=/yarn-cache yarn install --network-timeout 600000 --frozen-lockfile \
  && PUBLIC_URL=/viewer-ohif/ NODE_OPTIONS=--max-old-space-size=4096 yarn run build
 
 

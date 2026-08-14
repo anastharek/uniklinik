@@ -104,14 +104,14 @@ const PreloadSeriesControl = ({ SeriesInstanceUID }: { SeriesInstanceUID?: strin
   };
 
   return (
-    <div className="pointer-events-none absolute bottom-[2px] right-0 left-0 z-10 flex items-center justify-center">
+    <div className="pointer-events-none absolute right-0 bottom-0 left-0 z-10 flex items-center justify-center">
       {state === 'preloading' ? (
-        <div className="pointer-events-none flex h-[16px] w-[86px] items-center overflow-hidden rounded-full bg-black/70">
+        <div className="pointer-events-none flex h-[18px] w-[92px] items-center overflow-hidden rounded-full bg-black/60 shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
           <div
-            className="h-full bg-primary"
+            className="h-full bg-white"
             style={{ width: `${percent}%`, transition: 'width 0.6s ease' }}
           />
-          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold text-white">
+          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">
             {percent}%
           </span>
         </div>
@@ -121,12 +121,12 @@ const PreloadSeriesControl = ({ SeriesInstanceUID }: { SeriesInstanceUID?: strin
           onClick={start}
           onTouchStart={stopTouch}
           onTouchEnd={stopTouch}
-          className={`flex h-[16px] items-center justify-center rounded-full px-[6px] text-[9px] font-semibold tracking-wide whitespace-nowrap ${
+          className={`flex h-[18px] items-center justify-center rounded-full px-[8px] text-[10px] font-bold tracking-wide whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.7)] ${
             state === 'done'
-              ? 'bg-emerald-500/90 text-white'
+              ? 'bg-emerald-500 text-white'
               : state === 'error'
-              ? 'bg-red-500/90 text-white'
-              : 'bg-black/70 text-white hover:bg-primary/90'
+              ? 'bg-red-500 text-white'
+              : 'bg-white text-black hover:bg-white/85'
           }`}
           data-cy="series-preload-button"
           title={

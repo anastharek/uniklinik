@@ -226,7 +226,7 @@ const Thumbnail = ({
                 </div>
               </div>
             </div>
-            <div className="flex h-[14px] items-center justify-start pt-[2px] pl-[1px]">
+            <div className="flex h-[20px] items-center justify-start pt-[2px] pl-[1px]">
               <PreloadSeriesControl SeriesInstanceUID={SeriesInstanceUID} />
             </div>
           </div>
