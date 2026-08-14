@@ -101,7 +101,7 @@ export default function RequestFeatureTable({
     //             "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
     //             row.values.study_id
     //           }
-    //           OhifLink={"/viewer-ohif/viewer/" + row.values.StudyInstanceUID}
+    //           OhifLink={"/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" + row.values.StudyInstanceUID}
     //           radiant={
     //             "radiant://?n=pstv&v=0020000D&v=%22" +
     //             row.values.StudyInstanceUID

@@ -483,7 +483,7 @@ const ViewReport = () => {
               "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
               id
             }
-            OhifLink={"/viewer-ohif/viewer/" + StudyInstanceUID}
+            OhifLink={"/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" + StudyInstanceUID}
             radiant={"radiant://?n=pstv&v=0020000D&v=%22" + StudyInstanceUID}
             osirix={
               "osirix://?methodName=downloadURL&URL=https://strokesvr.padimedical.com/studies/" +

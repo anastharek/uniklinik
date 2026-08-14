@@ -46,3 +46,7 @@ cron-fix/
 nginx/
 *.zip
 *.bak*
+
+# Restore-point artifacts stay local (NAS) — code tarballs are large, nginx sqlite holds auth hashes
+/restore-points/*/code/
+/restore-points/*/nginx-proxy-manager/

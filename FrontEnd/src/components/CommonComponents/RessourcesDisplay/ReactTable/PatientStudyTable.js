@@ -282,7 +282,7 @@ const PatientStudyTable = ({
                 row.original.ID
               }
               OhifLink={
-                "/viewer-ohif/viewer/" +
+                "/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" +
                 row.original.MainDicomTags.StudyInstanceUID
               }
               radiant={

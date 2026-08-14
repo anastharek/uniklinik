@@ -9,7 +9,7 @@ export default class OhifLink extends Component {
   render = () => {
     // console.log('study id', this.props.StudyInstanceUID)
     return (
-      this.props.StudyInstanceUID === undefined ? null : <Link className={this.props.className} to={'/viewer-ohif/viewer/' + this.props.StudyInstanceUID} target='_blank'>Viewer (For Research)</Link>
+      this.props.StudyInstanceUID === undefined ? null : <Link className={this.props.className} to={'/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=' + this.props.StudyInstanceUID} target='_blank'>Viewer (For Research)</Link>
     )
   }
 }

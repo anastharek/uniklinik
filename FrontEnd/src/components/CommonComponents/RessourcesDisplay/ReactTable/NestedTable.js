@@ -68,7 +68,7 @@ function SubRow({
                 "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
                 element.StudyOrthancID
               }
-              OhifLink={"/viewer-ohif/viewer/" + element.StudyInstanceUID}
+              OhifLink={"/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" + element.StudyInstanceUID}
               radiant={
                 "radiant://?n=pstv&v=0020000D&v=%22" + element.StudyInstanceUID
               }

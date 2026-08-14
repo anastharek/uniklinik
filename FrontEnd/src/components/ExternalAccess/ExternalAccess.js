@@ -40,7 +40,7 @@ export const ExternalAccess = ({ params }) => {
               redirect = `https://strokesvr.padimedical.com/stone-webviewer/index.html?study=${StudyInstanceId.split("---")[0]}`;
               break;
             case "ohif":
-              redirect = `${window.location.protocol}//${window.location.host}/viewer-ohif/viewer/${StudyInstanceId.split("---")[0]}`;
+              redirect = `${window.location.protocol}//${window.location.host}/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=${StudyInstanceId.split("---")[0]}`;
               break;
             case "osimis": //tukar link - osimis viewer
               redirect = `${window.location.protocol}//strokesvr.padimedical.com/osimis-viewer/app/index.html?study=${StudyInstanceId}`; //this is orthanc id
