@@ -1,4 +1,5 @@
-# This dockerfile is used to publish the `ohif/viewer` image on dockerhub.
+# syntax=docker/dockerfile:1.7-labs
+# This dockerfile is used to publish the `ohif/app` image on dockerhub.
 #
 # It's a good example of how to build our static application and package it
 # with a web server capable of hosting it as static content.
@@ -19,48 +20,86 @@
 #
 
 
+# syntax=docker/dockerfile:1.7-labs
+# This dockerfile is used to publish the `ohif/app` image on dockerhub.
+#
+# It's a good example of how to build our static application and package it
+# with a web server capable of hosting it as static content.
+#
+# docker build
+# --------------
+# If you would like to use this dockerfile to build and tag an image, make sure
+# you set the context to the project's root directory:
+# https://docs.docker.com/engine/reference/commandline/build/
+#
+#
+# SUMMARY
+# --------------
+# This dockerfile is used as an input for a second stage to make things run faster.
+#
+
+
 # Stage 1: Build the application
 # docker build -t ohif/viewer:latest .
-FROM node:14-slim as builder
+# Copy Files
+FROM node:20.18.1-slim as builder
+
+RUN apt-get update && apt-get install -y build-essential python3
+
 
 RUN mkdir /usr/src/app
 WORKDIR /usr/src/app
+RUN npm install -g bun@1.2.23
+RUN npm install -g lerna@7.4.2
+ENV PATH=/usr/src/app/node_modules/.bin:$PATH
 
-# Copy Files
-COPY .docker /usr/src/app/.docker
-COPY .webpack /usr/src/app/.webpack
-COPY extensions /usr/src/app/extensions
-COPY platform /usr/src/app/platform
-COPY .browserslistrc /usr/src/app/.browserslistrc
-COPY aliases.config.js /usr/src/app/aliases.config.js
-COPY babel.config.js /usr/src/app/babel.config.js
-COPY lerna.json /usr/src/app/lerna.json
-COPY package.json /usr/src/app/package.json
-COPY postcss.config.js /usr/src/app/postcss.config.js
-COPY yarn.lock /usr/src/app/yarn.lock
-
-RUN apt-get update && apt-get install -y python make g++
+# Do an initial install and then a final install
+COPY package.json yarn.lock preinstall.js lerna.json ./
+COPY --parents ./addOns/package.json ./addOns/*/*/package.json ./extensions/*/package.json ./modes/*/package.json ./platform/*/package.json ./
 # Run the install before copying the rest of the files
-RUN yarn config set workspaces-experimental true
-RUN yarn install --verbose
 
-ENV PATH /usr/src/app/node_modules/.bin:$PATH
+RUN bun pm cache rm
+RUN bun install
+RUN bun add ajv@8.12.0
+# Copy the local directory
+COPY --link --exclude=yarn.lock --exclude=package.json --exclude=Dockerfile . .
+
+# Build here
+# After install it should hopefully be stable until the local directory changes
 ENV QUICK_BUILD true
 # ENV GENERATE_SOURCEMAP=false
-# ENV REACT_APP_CONFIG=config/default.js
+ARG APP_CONFIG=config/default.js
+ARG PUBLIC_URL=/
+ENV PUBLIC_URL=${PUBLIC_URL}
 
-RUN yarn run build
+RUN bun run show:config
+RUN bun run build
 
-# Stage 2: Bundle the built application into a Docker container
+# Precompress files
+RUN chmod u+x .docker/compressDist.sh
+RUN ./.docker/compressDist.sh
+
+# Stage 3: Bundle the built application into a Docker container
 # which runs Nginx using Alpine Linux
-FROM nginx:1.21.1-alpine
-RUN apk add --no-cache bash
-RUN rm -rf /etc/nginx/conf.d
-COPY .docker/Viewer-v2.x /etc/nginx/conf.d
-COPY .docker/Viewer-v2.x/entrypoint.sh /usr/src/
+FROM nginxinc/nginx-unprivileged:1.27-alpine as final
+#RUN apk add --no-cache bash
+ARG PUBLIC_URL=/
+ENV PUBLIC_URL=${PUBLIC_URL}
+ARG PORT=80
+ENV PORT=${PORT}
+RUN rm /etc/nginx/conf.d/default.conf
+USER nginx
+COPY --chown=nginx:nginx .docker/Viewer-v3.x /usr/src
 RUN chmod 777 /usr/src/entrypoint.sh
-COPY --from=builder /usr/src/app/platform/viewer/dist /usr/share/nginx/html
-EXPOSE 80
-EXPOSE 443
+COPY --from=builder /usr/src/app/platform/app/dist /usr/share/nginx/html${PUBLIC_URL}
+# Copy paths that are renamed/redirected generally
+# Microscopy libraries depend on root level include, so must be copied
+COPY --from=builder /usr/src/app/platform/app/dist/dicom-microscopy-viewer /usr/share/nginx/html/dicom-microscopy-viewer
+
+# In entrypoint.sh, app-config.js might be overwritten, so chmod it to be writeable.
+# The nginx user cannot chmod it, so change to root.
+USER root
+RUN chown -R nginx:nginx /usr/share/nginx/html && chmod -R 777 /usr/share/nginx/html
+USER nginx
 ENTRYPOINT ["/usr/src/entrypoint.sh"]
 CMD ["nginx", "-g", "daemon off;"]

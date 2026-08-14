@@ -7,6 +7,7 @@ node_modules/
 build/
 dist/
 ohif/Viewers/platform/viewer/dist/
+ohif/Viewers/platform/app/dist/
 
 # Docker / data
 data/

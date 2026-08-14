@@ -121,6 +121,7 @@ export default class RoleForm extends Component {
     preload_osimis:false,
     view_osimis:false,
     view_aiViewer:false,
+    view_ohif:false,
     download_report:false,
     print_report:false,
     view_padiLabel:false,
@@ -262,6 +263,7 @@ export default class RoleForm extends Component {
         preload_osimis:this.props.data.preload_osimis,
         view_osimis:this.props.data.view_osimis,
         view_aiViewer:this.props.data.view_aiViewer,
+        view_ohif:this.props.data.view_ohif,
         download_report:this.props.data.download_report,
         print_report:this.props.data.print_report,
         view_padiLabel:this.props.data.view_padiLabel,
@@ -2160,6 +2162,21 @@ export default class RoleForm extends Component {
           </Col>
         </Row>
 
+        <Row className="mt-3">
+          <Col sm={5}>
+            <h5>View OHIF Viewer</h5>
+          </Col>
+          <Col sm={7}>
+            <Toggle
+              checked={this.state.view_ohif}
+              onChange={() =>
+                this.setState((prevState) => ({
+                  view_ohif: !prevState.view_ohif,
+                }))
+              }
+            />
+          </Col>
+        </Row>
         <Row className="mt-3">
           <Col sm={5}>
             <h5>View AI Viewer</h5>

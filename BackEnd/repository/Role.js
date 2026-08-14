@@ -147,6 +147,7 @@ class Role{
       preload_osimis,
     view_osimis,
     view_aiViewer,
+    view_ohif,
     download_report,
     print_report,
     view_padiLabel
@@ -281,6 +282,7 @@ class Role{
       preload_osimis,
       view_osimis,
       view_aiViewer,
+      view_ohif,
       download_report,
       print_report,
       view_padiLabel
@@ -425,6 +427,7 @@ class Role{
       preload_osimis,
     view_osimis,
     view_aiViewer,
+    view_ohif,
     download_report,
     print_report,
     view_padiLabel
@@ -558,6 +561,7 @@ class Role{
     role.preload_osimis=preload_osimis;
     role.view_osimis=view_osimis;
     role.view_aiViewer=view_aiViewer;
+    role.view_ohif=view_ohif;
     role.download_report=download_report;
     role.print_report=print_report;
     role.view_padiLabel=view_padiLabel;

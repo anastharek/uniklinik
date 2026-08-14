@@ -31,12 +31,15 @@ ENV GENERATE_SOURCEMAP=false
 RUN npm run build
 
 
-# ─── OHIF Viewer build ──────────────────────────────────────────────────
-FROM yarn-base AS ohif
+# ─── OHIF Viewer build (official v3.12.x — requires Node >=18) ───────────
+FROM node:20 AS ohif
 WORKDIR /ohif/Viewers
+RUN yarn config set registry https://registry.npmjs.org \
+ && yarn config set network-timeout 600000 \
+ && yarn config set prefer-offline true \
+ && yarn config set progress false
 COPY ./ohif/Viewers .
 RUN yarn install --network-timeout 600000 --frozen-lockfile \
- && npx lerna bootstrap \
  && PUBLIC_URL=/viewer-ohif/ NODE_OPTIONS=--max-old-space-size=4096 yarn run build
 
 
@@ -68,7 +71,7 @@ COPY ./BackEnd .
 # Gather frontend artifacts from build stages
 RUN mkdir -p build
 COPY --from=react    /app/build                              ./build/
-COPY --from=ohif     /ohif/Viewers/platform/viewer/dist      ./build/viewer-ohif/
+COPY --from=ohif     /ohif/Viewers/platform/app/dist         ./build/viewer-ohif/
 COPY --from=stone    /stone/wasm-binaries/StoneWebViewer      ./build/viewer-stone/
 COPY --from=react    /app/build/viewer-ohif/app-config.js     ./build/viewer-ohif/
 

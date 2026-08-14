@@ -1,14 +1,14 @@
 {
+  "About OHIF Viewer": "Über OHIF Viewer",
   "Browser": "Browser",
-  "Build Number": "Build Number",
-  "Latest Master Commits": "Letzter Master Commit",
+  "Build number": "Build-Nummer",
+  "Last master commits": "Letzter Master Commit",
   "More details": "Mehr Details",
   "Name": "Name",
-  "OHIF Viewer - About": "OHIF Viewer",
   "OS": "OS",
-  "Report an issue": "Problem melden",
+  "Report an issue": "Ein Problem melden",
   "Repository URL": "Repository URL",
   "Value": "Wert",
-  "Version Information": "Versionsinformation",
-  "Visit the forum": "Das Forum besuchen"
+  "Version information": "Informationen zur Version",
+  "Visit the forum": "Besuchen Sie das Forum"
 }

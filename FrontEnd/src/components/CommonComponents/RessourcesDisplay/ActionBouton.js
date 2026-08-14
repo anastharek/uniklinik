@@ -103,7 +103,7 @@ class ActionBouton extends Component {
             {/* hide by rishabh */}
             {/* <OhifLink className='dropdown-item bg-green' {...this.props} /> */}
             {/* changes done by rishabh */}
-            {/* {<OhifLink className='dropdown-item bg-green' {...this.props} />} */}
+            {this.props.roles.view_ohif && <OhifLink className='dropdown-item bg-green' {...this.props} />}
             {/* this.props.hideOsimisViewer ? null : <StoneLink className='dropdown-item bg-green' {...this.props} /> */}
             <button
               className="dropdown-item bg-green"

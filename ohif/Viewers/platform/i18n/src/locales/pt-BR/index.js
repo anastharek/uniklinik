@@ -4,12 +4,12 @@ import CineDialog from './CineDialog.json';
 import Common from './Common.json';
 import DatePicker from './DatePicker.json';
 import Header from './Header.json';
-import MeasurementTable from './MeasurementTable.json';
-import StudyList from './StudyList.json';
 import UserPreferencesModal from './UserPreferencesModal.json';
-import ViewportDownloadForm from './ViewportDownloadForm.json';
+import MeasurementTable from './MeasurementTable.json';
+import DataRow from './DataRow.json';
+import Messages from './Messages.json';
 
-export default { 
+export default {
   'pt-BR': {
     AboutModal,
     Buttons,
@@ -17,9 +17,9 @@ export default {
     Common,
     DatePicker,
     Header,
-    MeasurementTable,
-    StudyList,
     UserPreferencesModal,
-    ViewportDownloadForm,
-  }
+    MeasurementTable,
+    DataRow,
+    Messages,
+  },
 };

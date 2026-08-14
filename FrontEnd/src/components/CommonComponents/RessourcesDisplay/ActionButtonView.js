@@ -177,6 +177,23 @@ class ActionBoutonView extends Component {
                 A.I. Viewer
               </button>
             </Link>}
+            {this.props.role.view_ohif && <Link
+              style={{ textDecoration: "none" }}
+              onClick={(e)=>{
+                e.preventDefault();
+                this.LogActivity("VIEW OHIF")
+                localStorage.setItem('temp-link',this.props.OhifLink) 
+                window.open("/external-page","_blank")
+               }}
+            >
+              <button
+                className="dropdown-item "
+                type="button"
+                hidden={this.props.hiddenDelete}
+              >
+                OHIF Viewer
+              </button>
+            </Link>}
             {this.props.role.meddream && (
               <Link
                 style={{ textDecoration: "none" }}

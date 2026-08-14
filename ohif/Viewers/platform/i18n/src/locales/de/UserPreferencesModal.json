@@ -1,9 +1,11 @@
 {
   "Cancel": "$t(Buttons:Cancel)",
-  "No hotkeys found": "Keine Tastaturkürzel konfiguriert. Tastaturkürzel können in der app-config.js Datei der Anwendung konfiguriert werden.",
-  "Reset to Defaults": "$t(Buttons:Reset to Defaults)",
-  "ResetDefaultMessage": "Einstellungen erfolgreich zurückgesetzt. <br /> Sie müssen <strong>Speichern</strong> um dieses abzuschliessen.",
+  "No hotkeys found": "Keine Hotkeys gefunden.",
+  "Reset to defaults": "$t(Buttons:Reset to defaults)",
+  "ResetDefaultMessage": "Einstellungen zurückgesetzt. Bitte speichern.",
   "Save": "$t(Buttons:Save)",
-  "SaveMessage": "Einstellungen gesichert",
-  "User Preferences": "Benutzereinstellungen"
+  "SaveMessage": "Gespeichert",
+  "User preferences": "Benutzereinstellungen",
+  "Language": "Sprache",
+  "General": "Allgemein"
 }

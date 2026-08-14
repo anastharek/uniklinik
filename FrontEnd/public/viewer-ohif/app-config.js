@@ -1,27 +1,53 @@
+/**
+ * PUTRACNS — OHIF Viewer v3.12.x configuration
+ * Served at /viewer-ohif/app-config.js (baked into the OHIF dist at image build).
+ * Data source: the app's DICOMweb proxy (/api/dicom-web, /api/wado) which
+ * authenticates with the logged-in session and forwards to Orthanc.
+ * Format follows OHIF's official docker-nginx-orthanc reference config.
+ */
 window.config = {
+  name: 'config/app-config.js',
   routerBasename: '/viewer-ohif',
   extensions: [],
+  modes: [],
+  customizationService: {},
   showStudyList: true,
-  filterQueryParam: false,
-  servers: {
-    dicomWeb: [
-      {
-        name: "PadiMedical",
-        wadoUriRoot:
-          "/api/wado",
-        qidoRoot:
-          "/api/dicom-web",
-        wadoRoot:
-          "/api/dicom-web",
-        qidoSupportsIncludeField: true,
-        imageRendering: "wadors",
-        thumbnailRendering: "wadors",
-        enableStudyLazyLoad: true
-      }
-    ]
+  maxNumberOfWebWorkers: 3,
+  showWarningMessageForCrossOrigin: true,
+  showCPUFallbackMessage: true,
+  showLoadingIndicator: true,
+  experimentalStudyBrowserSort: false,
+  strictZSpacingForVolumeViewport: true,
+  groupEnabledModesFirst: true,
+  allowMultiSelectExport: false,
+  maxNumRequests: {
+    interaction: 100,
+    thumbnail: 75,
+    prefetch: 25,
   },
-  // Extensions should be able to suggest default values for these?
-  // Or we can require that these be explicitly set
+  showErrorDetails: 'always',
+  dataSources: [
+    {
+      namespace: '@ohif/extension-default.dataSourcesModule.dicomweb',
+      sourceName: 'dicomweb',
+      configuration: {
+        friendlyName: 'PadiMedical PACS',
+        name: 'PadiMedical',
+        wadoUriRoot: '/api/wado',
+        qidoRoot: '/api/dicom-web',
+        wadoRoot: '/api/dicom-web',
+        qidoSupportsIncludeField: true,
+        imageRendering: 'wadors',
+        thumbnailRendering: 'wadors',
+        enableStudyLazyLoad: true,
+        supportsFuzzyMatching: false,
+        supportsWildcard: true,
+        staticWado: true,
+        singlepart: 'bulkdata,video',
+      },
+    },
+  ],
+  // Supported Keys: https://craig.is/killing/mice
   hotkeys: [
     // ~ Global
     {
@@ -34,92 +60,19 @@ window.config = {
       label: 'Previous Viewport',
       keys: ['left'],
     },
-    // Supported Keys: https://craig.is/killing/mice
     // ~ Cornerstone Extension
     { commandName: 'rotateViewportCW', label: 'Rotate Right', keys: ['r'] },
     { commandName: 'rotateViewportCCW', label: 'Rotate Left', keys: ['l'] },
     { commandName: 'invertViewport', label: 'Invert', keys: ['i'] },
-    {
-      commandName: 'flipViewportVertical',
-      label: 'Flip Horizontally',
-      keys: ['h'],
-    },
-    {
-      commandName: 'flipViewportHorizontal',
-      label: 'Flip Vertically',
-      keys: ['v'],
-    },
+    { commandName: 'flipViewportVertical', label: 'Flip Horizontally', keys: ['h'] },
+    { commandName: 'flipViewportHorizontal', label: 'Flip Vertically', keys: ['v'] },
     { commandName: 'scaleUpViewport', label: 'Zoom In', keys: ['+'] },
     { commandName: 'scaleDownViewport', label: 'Zoom Out', keys: ['-'] },
     { commandName: 'fitViewportToWindow', label: 'Zoom to Fit', keys: ['='] },
     { commandName: 'resetViewport', label: 'Reset', keys: ['space'] },
-    // clearAnnotations
     { commandName: 'nextImage', label: 'Next Image', keys: ['down'] },
     { commandName: 'previousImage', label: 'Previous Image', keys: ['up'] },
-    // firstImage
-    // lastImage
-    {
-      commandName: 'previousViewportDisplaySet',
-      label: 'Previous Series',
-      keys: ['pagedown'],
-    },
-    {
-      commandName: 'nextViewportDisplaySet',
-      label: 'Next Series',
-      keys: ['pageup'],
-    },
-    // ~ Cornerstone Tools
-    { commandName: 'setZoomTool', label: 'Zoom', keys: ['z'] },
-    // ~ Window level presets
-    {
-      commandName: 'windowLevelPreset1',
-      label: 'W/L Preset 1',
-      keys: ['1'],
-    },
-    {
-      commandName: 'windowLevelPreset2',
-      label: 'W/L Preset 2',
-      keys: ['2'],
-    },
-    {
-      commandName: 'windowLevelPreset3',
-      label: 'W/L Preset 3',
-      keys: ['3'],
-    },
-    {
-      commandName: 'windowLevelPreset4',
-      label: 'W/L Preset 4',
-      keys: ['4'],
-    },
-    {
-      commandName: 'windowLevelPreset5',
-      label: 'W/L Preset 5',
-      keys: ['5'],
-    },
-    {
-      commandName: 'windowLevelPreset6',
-      label: 'W/L Preset 6',
-      keys: ['6'],
-    },
-    {
-      commandName: 'windowLevelPreset7',
-      label: 'W/L Preset 7',
-      keys: ['7'],
-    },
-    {
-      commandName: 'windowLevelPreset8',
-      label: 'W/L Preset 8',
-      keys: ['8'],
-    },
-    {
-      commandName: 'windowLevelPreset9',
-      label: 'W/L Preset 9',
-      keys: ['9'],
-    },
+    { commandName: 'nextViewport', label: 'Next Viewport', keys: [']'] },
+    { commandName: 'previousViewport', label: 'Previous Viewport', keys: ['['] },
   ],
-  cornerstoneExtensionConfig: {},
-  // Limit concurrent metadata requests to reduce Orthanc load
-  maxConcurrentMetadataRequests: 3,
-  // Limit prefetch to 15 images (was 100) — reduces DICOMweb traffic
-  maxNumPrefetchRequests: 15,
 };

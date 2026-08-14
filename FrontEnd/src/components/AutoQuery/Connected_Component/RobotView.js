@@ -153,10 +153,10 @@ function RobotTable({rows, approved, refreshHandler, deleteQueryHandler, retryQu
                                 Viewers
                             </Dropdown.Toggle>
                             <Dropdown.Menu>
-                                <OhifLink className='dropdown-item bg-green'
-                                          StudyInstanceUID={values.StudyInstanceUID}/>
-                                <StoneLink className='dropdown-item bg-green'
-                                           StudyInstanceUID={values.StudyInstanceUID}/>
+                                {this.props.roles.view_ohif && <OhifLink className='dropdown-item bg-green'
+                                          StudyInstanceUID={values.StudyInstanceUID}/>}
+                                {this.props.roles.view_osimis && <StoneLink className='dropdown-item bg-green'
+                                           StudyInstanceUID={values.StudyInstanceUID}/>}
                             </Dropdown.Menu>
                         </Dropdown>
                     </Fragment>
@@ -377,6 +377,10 @@ class RobotView extends Component {
     }
 }
 
+const mapStateToProps = (state) => ({
+    roles: state.PadiMedical.roles,
+})
+
 const mapDispatchToProps = {
     addStudiesToExportList,
     addStudiesToDeleteList,
@@ -396,4 +400,4 @@ RobotView.ROBOT_WAITING_RETRIEVE = 'waiting retireve'
 RobotView.ROBOT_RETRIEVING = 'retrieve'
 RobotView.ROBOT_COMPLETED = 'completed'
 
-export default connect(null, mapDispatchToProps)(RobotView)
+export default connect(mapStateToProps, mapDispatchToProps)(RobotView)

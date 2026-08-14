@@ -143,6 +143,7 @@ class Roles {
       payload.preload_osimis,
       payload.view_osimis,
       payload.view_aiViewer,
+      payload.view_ohif,
       payload.download_report,
       payload.print_report,
       payload.view_padiLabel
@@ -306,6 +307,7 @@ class Roles {
       payload.preload_osimis,
       payload.view_osimis,
       payload.view_aiViewer,
+      payload.view_ohif,
       payload.download_report,
       payload.print_report,
       payload.view_padiLabel

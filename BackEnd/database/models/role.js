@@ -133,6 +133,7 @@ module.exports = (sequelize, DataTypes) => {
       preload_osimis:DataTypes.BOOLEAN,
       view_osimis:DataTypes.BOOLEAN,
       view_aiViewer:DataTypes.BOOLEAN,
+      view_ohif:DataTypes.BOOLEAN,
       download_report:DataTypes.BOOLEAN,
       print_report:DataTypes.BOOLEAN,
       view_padiLabel:DataTypes.BOOLEAN

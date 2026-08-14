@@ -1,4 +1,4 @@
-import CommandsManager from './CommandsManager.js';
+import CommandsManager from './CommandsManager';
 import log from './../log.js';
 
 jest.mock('./../log.js');
@@ -8,7 +8,6 @@ describe('CommandsManager', () => {
     contextName = 'VTK',
     command = {
       commandFn: jest.fn().mockReturnValue(true),
-      storeContexts: ['viewers'],
       options: { passMeToCommandFn: ':wave:' },
     },
     commandsManagerConfig = {
@@ -17,7 +16,6 @@ describe('CommandsManager', () => {
           viewers: 'Test',
         };
       },
-      getActiveContexts: () => ['VIEWER', 'ACTIVE_VIEWER::CORNERSTONE'],
     };
 
   beforeEach(() => {
@@ -32,12 +30,6 @@ describe('CommandsManager', () => {
 
     expect(localCommandsManager).toHaveProperty('contexts');
     expect(localCommandsManager.contexts).toEqual({});
-  });
-
-  it('logs a warning if instantiated without getAppState or getActiveContexts', () => {
-    new CommandsManager();
-
-    expect(log.warn.mock.calls.length).toBe(1);
   });
 
   describe('createContext()', () => {
@@ -101,10 +93,7 @@ describe('CommandsManager', () => {
 
   describe('getCommand()', () => {
     it('returns undefined if context does not exist', () => {
-      const result = commandsManager.getCommand(
-        'TestCommand',
-        'NonExistentContext'
-      );
+      const result = commandsManager.getCommand('TestCommand', 'NonExistentContext');
 
       expect(result).toBe(undefined);
     });
@@ -138,9 +127,7 @@ describe('CommandsManager', () => {
 
   describe('runCommand()', () => {
     it('Logs a warning if commandName not found in context', () => {
-      const result = commandsManager.runCommand(
-        'CommandThatDoesNotExistInAnyContext'
-      );
+      const result = commandsManager.runCommand('CommandThatDoesNotExistInAnyContext');
 
       expect(result).toBe(undefined);
       expect(log.warn.mock.calls[0][0]).toEqual(
@@ -151,21 +138,12 @@ describe('CommandsManager', () => {
     it('Logs a warning if command definition does not have a commandFn', () => {
       const commandWithNoCommmandFn = {
         commandFn: undefined,
-        storeContexts: [],
         options: {},
       };
 
       commandsManager.createContext(contextName);
-      commandsManager.registerCommand(
-        contextName,
-        'TestCommand',
-        commandWithNoCommmandFn
-      );
-      const result = commandsManager.runCommand(
-        'TestCommand',
-        null,
-        contextName
-      );
+      commandsManager.registerCommand(contextName, 'TestCommand', commandWithNoCommmandFn);
+      const result = commandsManager.runCommand('TestCommand', null, contextName);
 
       expect(result).toBe(undefined);
       expect(log.warn.mock.calls[0][0]).toEqual(
@@ -178,16 +156,6 @@ describe('CommandsManager', () => {
       commandsManager.runCommand('TestCommand', {}, 'VIEWER');
 
       expect(command.commandFn.mock.calls.length).toBe(1);
-    });
-
-    it('Calls commandFn w/ properties from appState', () => {
-      commandsManager.registerCommand('VIEWER', 'TestCommand', command);
-      commandsManager.runCommand('TestCommand', {}, 'VIEWER');
-
-      expect(command.commandFn.mock.calls.length).toBe(1);
-      expect(command.commandFn.mock.calls[0][0].viewers).toEqual(
-        commandsManagerConfig.getAppState().viewers
-      );
     });
 
     it('Calls commandFn w/ command definition options', () => {
@@ -209,9 +177,7 @@ describe('CommandsManager', () => {
       commandsManager.runCommand('TestCommand', runCommandOptions, 'VIEWER');
 
       expect(command.commandFn.mock.calls.length).toBe(1);
-      expect(command.commandFn.mock.calls[0][0].test).toEqual(
-        runCommandOptions.test
-      );
+      expect(command.commandFn.mock.calls[0][0].test).toEqual(runCommandOptions.test);
     });
 
     it('Returns the result of commandFn', () => {
