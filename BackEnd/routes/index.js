@@ -241,10 +241,16 @@ const {
   getActivePreloads,
   getCachedStatus,
   getOrthancHealth,
+  startSeriesPreload,
+  getSeriesPreloadStatus,
 } = require("../controllers/preload");
 router.post("/preload", [userAuthMidelware], startPreloadMany);
 router.get("/preload/active", [userAuthMidelware], getActivePreloads);
 router.get("/preload/cached", [userAuthMidelware], getCachedStatus);
+// Per-series preload (OHIF button) — MUST come before /preload/:studyId so
+// "series" isn't captured by the :studyId param.
+router.post("/preload/series/:seriesUid", [userAuthMidelware], startSeriesPreload);
+router.get("/preload/series/:seriesUid", [userAuthMidelware], getSeriesPreloadStatus);
 router.post("/preload/:studyId", [userAuthMidelware], startPreload);
 router.get("/preload/:studyId", [userAuthMidelware], getPreloadStatus);
 router.get("/orthanc/health", [userAuthMidelware], getOrthancHealth);

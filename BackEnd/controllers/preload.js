@@ -43,6 +43,42 @@ const startPreloadMany = async function (req, res) {
   });
 };
 
+/** Per-series preload (OHIF study browser button) */
+function seriesJobJson(job) {
+  if (!job) return { status: "none" };
+  const total = job.totalInstances || 0;
+  const done = job.doneInstances || 0;
+  const percent =
+    total > 0 ? Math.min(100, Math.round((done / total) * 100)) : job.status === "done" ? 100 : 0;
+  return {
+    status: job.status,
+    seriesUid: job.seriesUid,
+    totalInstances: total,
+    doneInstances: done,
+    percent,
+    phase: job.phase,
+    queuePosition: job.queuePosition,
+    error: job.error || null,
+  };
+}
+
+const startSeriesPreload = async function (req, res) {
+  const { seriesUid } = req.params;
+  if (!seriesUid) {
+    return res.status(400).json({ message: "seriesUid is required" });
+  }
+  noStore(res);
+  const job = await preloadService.startSeriesPreload(seriesUid);
+  res.json(seriesJobJson(job));
+};
+
+const getSeriesPreloadStatus = async function (req, res) {
+  const { seriesUid } = req.params;
+  noStore(res);
+  const job = preloadService.getSeriesJob(seriesUid);
+  res.json(seriesJobJson(job));
+};
+
 const getPreloadStatus = async function (req, res) {
   const { studyId } = req.params;
   const job = preloadService.getJob(studyId);
@@ -113,6 +149,8 @@ const getOrthancHealth = async function (req, res) {
 module.exports = {
   startPreload,
   startPreloadMany,
+  startSeriesPreload,
+  getSeriesPreloadStatus,
   getPreloadStatus,
   getActivePreloads,
   getCachedStatus,

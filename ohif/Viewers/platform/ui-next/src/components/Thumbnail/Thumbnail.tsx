@@ -5,6 +5,7 @@ import { useDrag } from 'react-dnd';
 import { Icons } from '../Icons';
 import { DisplaySetMessageListTooltip } from '../DisplaySetMessageListTooltip';
 import { TooltipTrigger, TooltipContent, Tooltip } from '../Tooltip';
+import { PreloadSeriesControl } from './PreloadSeriesControl';
 
 /**
  * Display a thumbnail for a display set.
@@ -32,6 +33,7 @@ const Thumbnail = ({
   dragData = {},
   onReject = () => {},
   onClickUntrack = () => {},
+  SeriesInstanceUID,
   ThumbnailMenuItems = () => {},
 }: withAppTypes): React.ReactNode => {
   // TODO: We should wrap our thumbnail to create a "DraggableThumbnail", as
@@ -95,6 +97,9 @@ const Thumbnail = ({
                 {modality}
               </div>
             </div>
+
+            {/* preload control (PUTRACNS per-series warm-up) */}
+            <PreloadSeriesControl SeriesInstanceUID={SeriesInstanceUID} />
 
             {/* top right */}
             <div className="absolute top-0 right-0 flex items-center gap-[4px]">
@@ -220,6 +225,9 @@ const Thumbnail = ({
                   <div>{numInstances}</div>
                 </div>
               </div>
+            </div>
+            <div className="flex h-[14px] items-center justify-start pt-[2px] pl-[1px]">
+              <PreloadSeriesControl SeriesInstanceUID={SeriesInstanceUID} />
             </div>
           </div>
         </div>

@@ -45,6 +45,19 @@ const MAX_CONCURRENT = 2; // studies warmed in parallel
 const CACHE_FRESH_MS = 14 * 24 * 60 * 60 * 1000; // 2 weeks
 const MAX_SERIES_THUMBNAILS = 1; // images warmed per series
 
+// Viewer quality suffix map + series thresholds (shared by study and
+// per-series preload).
+const QUALITY_URL = {
+  pixeldata: "pixeldata-quality",
+  lossless: "high-quality",
+  low: "low-quality",
+  medium: "medium-quality",
+  high: "high-quality",
+};
+const SMALL_SERIES_FRAMES = 16;
+const MAX_FRAMES_PER_SERIES = 1000;
+const WARM_CONCURRENCY = 4; // parallel warm requests (Orthanc has 12 cores)
+
 // Flood protection:
 // - CHURN_INSTANCES: how many NEW instances must land in Orthanc (since a
 //   preload finished) before we consider the warmed 4GB RAM cache evicted.
@@ -216,6 +229,33 @@ async function orthancGet(path, timeoutMs = 60000) {
   }
 }
 
+/**
+ * POST /tools/find against Orthanc (returns Orthanc UUIDs).
+ * Used to resolve DICOM UIDs (e.g. SeriesInstanceUID) to Orthanc IDs.
+ */
+async function orthancFind(level, query, limit = 50) {
+  const url = getOrthancBaseUrl() + "/tools/find";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60000);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: getAuthHeader(),
+      },
+      body: JSON.stringify({ Level: level, Query: query, Limit: limit }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(`Orthanc ${res.status} on /tools/find`);
+    }
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /** Fetch a binary resource (viewer image) to warm the viewer plugin cache */
 async function orthancWarm(path, timeoutMs = 120000) {
   // Default 2 min (was 15 min) — same reasoning as orthancGet: a single
@@ -362,14 +402,16 @@ function pump() {
 
 function pumpInner() {
   while (activeCount < MAX_CONCURRENT && queue.length) {
-    const studyId = queue.shift();
-    const job = jobs.get(studyId);
+    const key = queue.shift();
+    const job = jobs.get(key);
     if (!job) continue;
     activeCount += 1;
     job.status = "running";
     job.startedAt = new Date().toISOString();
-    // Fire and forget; pump() is called again when it settles
-    runJob(job)
+    // Fire and forget; pump() is called again when it settles.
+    // Series jobs (OHIF per-series preload) share the same queue.
+    const runner = job.type === "series" ? runSeriesJob(job) : runJob(job);
+    runner
       .catch((err) => {
         job.status = "error";
         job.phase = "error";
@@ -411,16 +453,6 @@ async function runJob(job) {
       // the fastest preview quality (low when available) so the pane always
       // pops instantly, plus the middle frame at full quality.
       // ===================================================================
-      const QUALITY_URL = {
-        pixeldata: "pixeldata-quality",
-        lossless: "high-quality",
-        low: "low-quality",
-        medium: "medium-quality",
-        high: "high-quality",
-      };
-      const SMALL_SERIES_FRAMES = 16;
-      const MAX_FRAMES_PER_SERIES = 1000;
-
       const tuples = instances; // [ [id, frameIndex, frameCount], ... ]
       const totalFrames = tuples.reduce(
         (sum, t) => sum + (Array.isArray(t) ? t[2] || 1 : 1),
@@ -453,7 +485,6 @@ async function runJob(job) {
       // Real ingest floods are still handled by the ingest-rate pause in the
       // pump (isOrthancBusy); the CPU-only flood alert was fixed to require
       // an actual ingest rate so preload warming doesn't trip false alarms.
-      const WARM_CONCURRENCY = 4;
       try {
         console.log(
           `[PRELOAD] ${studyId.slice(0, 8)} ${seriesId.slice(0, 8)} frames=${frameTuples.length} small=${isSmallSeries} q=${suffixes.join(",")} -> ${toWarm.join(",")} c=${WARM_CONCURRENCY}`
@@ -556,6 +587,174 @@ async function runJob(job) {
   }
 }
 
+/**
+ * Per-series preload (OHIF study browser button).
+ * Warms ONE series via the viewer's image endpoints so the series opens
+ * instantly in OHIF (instance files land in Orthanc/OS page cache).
+ * Progress is per-instance: percent = doneInstances/totalInstances.
+ */
+async function runSeriesJob(job) {
+  job.phase = "series";
+  try {
+    const series = await orthancGet(`/osimis-viewer/series/${job.seriesId}`);
+    const instances = (series && series.instances) || [];
+    job.totalInstances += instances.length;
+    const tuples = instances;
+    const totalFrames = tuples.reduce(
+      (sum, t) => sum + (Array.isArray(t) ? t[2] || 1 : 1),
+      0
+    );
+    const isSmallSeries = totalFrames <= SMALL_SERIES_FRAMES;
+
+    const avail = Array.isArray(series.availableQualities)
+      ? series.availableQualities
+      : [];
+    let suffixes = avail.length
+      ? [...new Set(avail.map((q) => QUALITY_URL[q]).filter(Boolean))]
+      : ["pixeldata-quality", "medium-quality", "high-quality"];
+    const lowIdx = suffixes.indexOf("low-quality");
+    if (lowIdx > 0) suffixes = [suffixes.splice(lowIdx, 1)[0], ...suffixes];
+    const toWarm = isSmallSeries ? suffixes : [suffixes[0]];
+
+    let warmErrors = 0;
+    for (const t of tuples) {
+      const instId = Array.isArray(t) ? t[0] : t;
+      const n = Array.isArray(t) ? t[2] || 1 : 1;
+      const frameTuples = [];
+      for (let f = 0; f < n; f++) frameTuples.push([instId, f]);
+      if (!frameTuples.length) {
+        job.doneInstances += 1;
+        continue;
+      }
+      const capped = Math.min(frameTuples.length, MAX_FRAMES_PER_SERIES);
+      const requests = [];
+      for (let k = 0; k < capped; k++) {
+        for (const suffix of toWarm) {
+          requests.push(
+            `/osimis-viewer/images/${frameTuples[k][0]}/${frameTuples[k][1]}/${suffix}`
+          );
+        }
+      }
+      let next = 0;
+      const worker = async () => {
+        while (next < requests.length) {
+          const url = requests[next++];
+          try {
+            await orthancWarm(url);
+          } catch (e) {
+            warmErrors += 1;
+            job.error = job.error || e.message;
+          }
+        }
+      };
+      await Promise.all(
+        Array.from(
+          { length: Math.min(WARM_CONCURRENCY, requests.length) },
+          worker
+        )
+      );
+      job.doneInstances += 1;
+    }
+
+    // Large series: also warm first + middle instance frame 0 at every
+    // supported quality (matches study-preload behavior).
+    if (!isSmallSeries && tuples.length) {
+      const tail = [];
+      for (const pick of [tuples[0], tuples[Math.floor(tuples.length / 2)]]) {
+        const pickId = Array.isArray(pick) ? pick[0] : pick;
+        if (pickId) {
+          for (const suffix of suffixes) {
+            tail.push(`/osimis-viewer/images/${pickId}/0/${suffix}`);
+          }
+        }
+      }
+      await Promise.all(
+        tail.map((u) =>
+          orthancWarm(u).catch((e) => {
+            job.error = job.error || e.message;
+          })
+        )
+      );
+    }
+
+    job.status = "done";
+    job.phase = "done";
+    console.log(
+      `[PRELOAD:SERIES] ${job.seriesUid.slice(0, 12)} ${job.doneInstances}/${job.totalInstances} instances warmed (${warmErrors} req fails)`
+    );
+  } catch (e) {
+    job.status = "error";
+    job.phase = "error";
+    job.error = e.message;
+    console.error(`[PRELOAD:SERIES] ${job.seriesUid.slice(0, 12)} failed: ${e.message}`);
+  }
+  job.finishedAt = new Date().toISOString();
+}
+
+/**
+ * Queue a per-series preload job. Accepts the DICOM SeriesInstanceUID
+ * (what OHIF knows); resolves it to the Orthanc series UUID server-side.
+ */
+async function startSeriesPreload(seriesUid) {
+  let seriesId = null;
+  try {
+    const found = await orthancFind("Series", { SeriesInstanceUID: seriesUid }, 1);
+    seriesId = found && found[0];
+    if (!seriesId) throw new Error(`series not found: ${seriesUid}`);
+  } catch (e) {
+    const job = {
+      type: "series",
+      status: "error",
+      seriesUid,
+      seriesId: null,
+      totalInstances: 0,
+      doneInstances: 0,
+      phase: "error",
+      startedAt: null,
+      finishedAt: new Date().toISOString(),
+      error: e.message,
+      queuePosition: 0,
+    };
+    jobs.set(seriesUid, job);
+    return job;
+  }
+
+  const existing = jobs.get(seriesUid);
+  if (
+    existing &&
+    (existing.status === "queued" ||
+      existing.status === "running" ||
+      existing.status === "done")
+  ) {
+    return existing;
+  }
+
+  const job = {
+    type: "series",
+    status: "queued",
+    seriesUid,
+    seriesId,
+    totalInstances: 0,
+    doneInstances: 0,
+    failedInstances: 0,
+    phase: "queued",
+    startedAt: null,
+    finishedAt: null,
+    error: null,
+    queuePosition: 0,
+  };
+  jobs.set(seriesUid, job);
+  queue.push(seriesUid);
+  updateQueuePositions();
+  pump();
+  return job;
+}
+
+/** Snapshot of a per-series job (or null) */
+function getSeriesJob(seriesUid) {
+  return jobs.get(seriesUid) || null;
+}
+
 /** Batch: start preload for many studies at once (queued) */
 async function startPreloadMany(studyIds) {
   const results = [];
@@ -638,6 +837,8 @@ async function repreloadChurned(max = 3) {
 module.exports = {
   startPreload,
   startPreloadMany,
+  startSeriesPreload,
+  getSeriesJob,
   getJob,
   getActiveJobs,
   getCachedStatus,
