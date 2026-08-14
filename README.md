@@ -434,8 +434,26 @@ cp docker-compose.yml nginx/*.conf orthanc-pacs/modify.lua "$BACKUP_DIR/"
 | Node.js (backend) | 20 |
 | Node.js (frontend build) | 16.20.0 |
 | Alpine (prewarm) | 3.20 |
-| OHIF Viewer | Custom fork |
+| OHIF Viewer | 3.12.12 (official) |
 | Stone Web Viewer | WASM bundle |
+
+## OHIF Viewer (v3.12.12)
+
+OHIF is built automatically by the multi-stage Dockerfile and served by the app at **`/viewer-ohif/`**:
+
+- **Source**: vendored in `ohif/Viewers/` (official v3.12.12). Built in the `ohif` build stage
+  (Node 20, `PUBLIC_URL=/viewer-ohif/`, output `platform/app/dist`).
+- **Config**: `FrontEnd/public/viewer-ohif/app-config.js` — v3.12 `dataSources` format,
+  points at the app's own DICOMweb proxy (`/api/dicom-web`, `/api/wado`) so the viewer
+  rides on the logged-in session; no CORS needed (same origin).
+- **Access control**: new `view_ohif` role permission (migration
+  `BackEnd/database/migrations/20260814170000-add-view-ohif-to-Roles.js`, mirrors `view_osimis`).
+  The "OHIF Viewer" button shows only for roles with `view_ohif` enabled
+  (Admin → Users → Roles → View OHIF Viewer).
+- **Install on another server**: clone the repo, copy `.env`, run
+  `docker compose build padipacs && docker compose up -d`. The migration auto-applies on
+  first start (`prestart: npm run migrate`). No OHIF-specific setup needed beyond that.
+- **URLs**: study list `/viewer-ohif/`, direct study `/viewer-ohif/viewer/<StudyInstanceUID>`.
 
 ---
 
