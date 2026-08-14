@@ -84,6 +84,16 @@ const ReverseProxy = {
         return got(this.makeOptions(method, api, data))
             .on('response',async function (response) {
                 if (response.statusCode === 200) {
+                    // Forward essential upstream headers — got.pipe() does NOT copy
+                    // headers. The DICOMweb multipart boundary lives in Content-Type,
+                    // so without it OHIF/cornerstone cannot parse WADO-RS frames.
+                    const upstream = response.headers || {};
+                    const forward = ['content-type','content-length','content-disposition','accept-ranges','cache-control','etag','last-modified'];
+                    if (upstream['content-encoding'] !== undefined) {
+                        // got may have decompressed the body; upstream length no longer valid
+                        forward.splice(forward.indexOf('content-length'), 1);
+                    }
+                    forward.forEach(h => { if (upstream[h] !== undefined && !res.getHeader(h)) res.setHeader(h, upstream[h]); });
                     response.pipe(res)
                 } else if (response.statusCode === 401) {
                     res.status(403).send("Bad orthanc credentials")
@@ -119,6 +129,9 @@ const ReverseProxy = {
         return got(this.makeOptionsUpload(method, api, data, true))
             .on('response', function (response) {
                 if (response.statusCode === 200) {
+                    const upstream = response.headers || {};
+                    ['content-type','content-length','content-disposition','accept-ranges','cache-control','etag','last-modified']
+                        .forEach(h => { if (upstream[h] !== undefined && !res.getHeader(h)) res.setHeader(h, upstream[h]); });
                     response.pipe(res)
                 } else if (response.statusCode === 401) {
                     res.status(403).send("Bad orthanc credentials")
@@ -134,6 +147,9 @@ const ReverseProxy = {
         return got(this.makeOptionsUpload(method, api, data, false))
             .on('response', function (response) {
                 if (response.statusCode === 200) {
+                    const upstream = response.headers || {};
+                    ['content-type','content-length','content-disposition','accept-ranges','cache-control','etag','last-modified']
+                        .forEach(h => { if (upstream[h] !== undefined && !res.getHeader(h)) res.setHeader(h, upstream[h]); });
                     response.pipe(res)
                 } else if (response.statusCode === 401) {
                     res.status(403).send("Bad orthanc credentials")
