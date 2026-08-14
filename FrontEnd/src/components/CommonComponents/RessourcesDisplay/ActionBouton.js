@@ -10,6 +10,7 @@ import { CreateReportButton } from "../../CreateReport/CreateReportButton";
 import { ShareButton } from "../../Share/ShareButton";
 import { CardShareButton } from "../../CardShare/CardShareButton";
 import { CardShareButtonPremium } from "../../CardShare/CardShareButtonPremium";
+import OhifLink from "../../Viewers/OhifLink";
 import { CardShareButtonWSI } from "../../CardShare/CardShareButtonWSI";
 import { CardShareButtonDownload } from "../../CardShare/CardShareButtonDownload";
 import { CardShareButtonDownloadLight } from "../../CardShare/CardShareButtonDownloadLight";
