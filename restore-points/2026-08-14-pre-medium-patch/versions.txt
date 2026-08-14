@@ -1,0 +1,32 @@
+Restore point: 2026-08-14-pre-medium-patch (created 2026-08-14 10:51 +08)
+Reason: before nginx-override MEDIUM-quality app.js patch (Anas approved restore-first)
+
+--- Containers ---
+pmstroke5.1	pdml/padimedicalstroke5:3	Up 35 hours
+orthanc-pmstroke5.1	putracns-orthanc	Up 3 minutes
+nginx-proxy-manager	jc21/nginx-proxy-manager:2.15.1	Up 3 days
+orthanc image: putracns-orthanc | restarts: 6 | started: 2026-08-14T02:48:05.128511942Z
+--- Versions ---
+{
+	"HttpError" : "Not Found",
+	"HttpStatus" : 404,
+	"Message" : "Unknown resource",
+	"Method" : "GET",
+	"OrthancError" : "Unknown resource",
+	"OrthancStatus" : 17,
+	"Uri" : "/osimis-viewer/plugin-version"
+}
+{
+	"HttpError" : "Not Found",
+	"HttpStatus" : 404,
+	"Message" : "Unknown resource",
+	"Method" : "GET",
+	"OrthancError" : "Unknown resource",
+	"OrthancStatus" : 17,
+	"Uri" : "/version"
+}
+
+--- NPM DB ---
+5c31c191dbda80c2568e68777f9013a3aab7e2dc7c99f851a6d8bff9d669f3de  /opt/nginx-proxy-manager/data/database.sqlite
+--- app.js ---
+fd8beeb5ca3c04271528f224bc8137f33117a7357f0b72cd879e403b535facc1  /media/svr04pm01/NAS1/PACS RESEARCH/PUTRACNS/restore-points/2026-08-14-pre-medium-patch/viewer/app.js.original

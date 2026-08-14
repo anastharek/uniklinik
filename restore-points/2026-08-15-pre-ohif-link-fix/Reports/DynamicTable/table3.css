@@ -1,0 +1,59 @@
+.table-type3 thead tr th textarea{
+    font-weight: bold !important;
+    font-size: 16px;
+}
+
+
+.table-type3 thead tr th textarea{
+    font-weight: bold !important;
+    font-size: 16px;
+}
+
+
+.table-type3 thead tr th:nth-child(1){
+    min-width: auto !important;
+   
+}
+
+.table-type3 table tr td:nth-child(1){
+
+    min-width: auto !important;
+    width: auto !important;
+}
+
+
+.table-type3 thead tr th:nth-child(2){
+    min-width: auto !important;
+   
+}
+
+.table-type3 table tr td:nth-child(2){
+
+    min-width: auto !important;
+    width: auto !important;
+}
+
+.table-type3 thead tr th:nth-child(3){
+    min-width: auto !important;
+   
+}
+
+.table-type3 table tr td:nth-child(3){
+
+    min-width: auto !important;
+    width: auto !important;
+}
+
+
+
+
+.table-type3 thead tr th:nth-child(4){
+    min-width: auto !important;
+   
+}
+
+.table-type3 table tr td:nth-child(4){
+
+    min-width: auto !important;
+    width: auto !important;
+}

@@ -1,0 +1,10 @@
+PUTRACNS working snapshot — 2026-08-15 (OHIF viewer functional)
+=============================================================
+git HEAD        : f7eccec (pre-push rewrite: beb1ab1/f7eccec equivalent)
+app image       : pdml/padimedicalstroke5:3 (id c3c21c8857d2)
+backup tags     : :3-before-ohif-link-fix (pre-404-fix), :3-ohif-working (this state)
+orthanc image   : putracns-orthanc (1.12.11, osimis viewer 1.4.3.0)
+ohif viewer     : v3.12.12 official, routerBasename /viewer-ohif, datasource dicomweb
+deep-link format: /viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=<uid>
+known fixes     : (1) deep-link format, (2) ReverseProxy Content-Type forwarding
+code tarball    : code/PUTRACNS-code-HEAD-f7eccec.tar.gz (LOCAL ONLY, not in git)

@@ -1,0 +1,8 @@
+Restore point pre-OHIF — 2026-08-14 16:04 +08
+HEAD: 5264937 compose: bind-mount orthanc-pacs/modify.lua into orthanc container (ro,Z) — prevents filter regression when container is recreated (image still has old broken script baked)
+postgres-stroke5.1 postgres:13.1 Up 2 days
+pmstroke5.1 pdml/padimedicalstroke5:3 Up 40 hours
+orthanc-pmstroke5.1 putracns-orthanc Up 5 hours
+nginx-proxy-manager jc21/nginx-proxy-manager:2.15.1 Up 3 hours
+app: HTTP 200
+viewer: HTTP 200

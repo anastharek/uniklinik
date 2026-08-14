@@ -1,0 +1,11 @@
+[
+  {
+    "header": "--",
+    "columnData": ["CCA", "ICA", "ECA", "VA", "IMT"]
+  },
+  { "header": "RT VMAX (cm/s) / RI", "columnData": [] },
+  {
+    "header": "LT VMAX (cm/s) / RI",
+    "columnData": []
+  }
+]

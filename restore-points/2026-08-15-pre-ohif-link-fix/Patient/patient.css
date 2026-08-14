@@ -1,0 +1,21 @@
+.patient-area{
+    background: #fff;
+    margin: 5% auto auto auto;
+    border: 2px solid white;
+    background-color: white;
+    padding: 3rem;
+    width: 95%;
+    border-radius: 8px;
+    box-shadow: 4px 4px 4px #C5CACC;
+    transition: 1s;
+}
+
+@media screen and (max-width: 520px){
+    .patient-area{
+        width: 98%;
+        margin: 0;
+        margin: auto;
+        padding: 1rem 2px;
+    }
+    
+}
