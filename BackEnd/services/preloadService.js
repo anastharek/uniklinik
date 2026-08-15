@@ -56,7 +56,7 @@ const QUALITY_URL = {
 };
 const SMALL_SERIES_FRAMES = 16;
 const MAX_FRAMES_PER_SERIES = 1000;
-const WARM_CONCURRENCY = 4; // parallel warm requests (Orthanc has 12 cores)
+const WARM_CONCURRENCY = 8; // parallel warm requests (Orthanc has 12 cores)
 
 // Flood protection:
 // - CHURN_INSTANCES: how many NEW instances must land in Orthanc (since a
