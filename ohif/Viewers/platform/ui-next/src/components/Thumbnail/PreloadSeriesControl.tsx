@@ -106,12 +106,12 @@ const PreloadSeriesControl = ({ SeriesInstanceUID }: { SeriesInstanceUID?: strin
   return (
     <div className="pointer-events-none absolute right-0 bottom-0 left-0 z-10 flex items-center justify-center">
       {state === 'preloading' ? (
-        <div className="pointer-events-none flex h-[18px] w-[92px] items-center overflow-hidden rounded-full bg-black/60 shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
+        <div className="pointer-events-none flex h-[22px] w-[100px] items-center overflow-hidden rounded-full bg-black/60 shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
           <div
             className="h-full bg-white"
             style={{ width: `${percent}%`, transition: 'width 0.6s ease' }}
           />
-          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white">
+          <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white">
             {percent}%
           </span>
         </div>
@@ -121,7 +121,7 @@ const PreloadSeriesControl = ({ SeriesInstanceUID }: { SeriesInstanceUID?: strin
           onClick={start}
           onTouchStart={stopTouch}
           onTouchEnd={stopTouch}
-          className={`flex h-[18px] items-center justify-center rounded-full px-[8px] text-[10px] font-bold tracking-wide whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.7)] ${
+          className={`pointer-events-auto flex h-[22px] cursor-pointer items-center justify-center rounded-full px-[10px] text-[11px] font-bold tracking-wide whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.7)] ${
             state === 'done'
               ? 'bg-emerald-500 text-white'
               : state === 'error'
