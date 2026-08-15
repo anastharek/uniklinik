@@ -23,7 +23,7 @@ window.config = {
   maxNumRequests: {
     interaction: 100,
     thumbnail: 75,
-    prefetch: 25,
+    prefetch: 60,
   },
   showErrorDetails: 'always',
   dataSources: [
