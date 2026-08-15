@@ -499,11 +499,13 @@ function _mapDisplaySets(displaySets, displaySetLoadingState, thumbnailImageSrcM
         countIcon: ds.countIcon,
         messages: ds.messages,
         StudyInstanceUID: ds.StudyInstanceUID,
+        SeriesInstanceUID: ds.SeriesInstanceUID,
         componentType,
         imageSrc: thumbnailSrc || thumbnailImageSrcMap[displaySetInstanceUID],
         dragData: {
           type: 'displayset',
           displaySetInstanceUID,
+          SeriesInstanceUID: ds.SeriesInstanceUID,
           // .. Any other data to pass
         },
         isHydratedForDerivedDisplaySet: ds.isHydrated,
