@@ -13,6 +13,13 @@ window.config = {
   customizationService: {},
   showStudyList: true,
   maxNumberOfWebWorkers: 3,
+  // Cap cornerstone's decoded-image cache at 256MB (default is 3GB!). The
+  // stack prefetcher fills ~1/4 of the cache with the active series; for the
+  // AI screenshot series (1280x1969 RGB, ~10MB decoded/frame) the 3GB default
+  // made OHIF decode the whole 60-frame stack (~1.2GB with GPU textures) and
+  // crash Safari. 256MB bounds worst-case memory ~512MB (CPU+GPU) — safe on
+  // phones and desktops, and CT series (524KB/frame) still prefetch fully.
+  maxCacheSize: 268435456,
   showWarningMessageForCrossOrigin: true,
   showCPUFallbackMessage: true,
   showLoadingIndicator: true,
