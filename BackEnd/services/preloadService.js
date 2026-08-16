@@ -277,6 +277,94 @@ async function orthancWarm(path, timeoutMs = 120000) {
   }
 }
 
+// =====================================================================
+// OHIF (DICOMweb JPEG-LS) warming
+// =====================================================================
+// The Osimis viewer and OHIF fetch pixels through DIFFERENT endpoints:
+//   - Osimis: /osimis-viewer/images/{inst}/{frame}/{quality}-quality
+//   - OHIF:   /dicomweb/studies/{s}/series/{se}/instances/{i}/frames/{n}
+//            with Accept: multipart/related; type=image/jls;
+//            transfer-syntax=1.2.840.10008.1.2.4.80  (JPEG-LS lossless)
+// Warming only the Osimis endpoints made the Preload button useless for
+// OHIF (the ⚡ badge said Cached but OHIF still transcoded cold). These
+// helpers warm the EXACT DICOMweb path OHIF requests, so the JPEG-LS
+// transcodes land in Orthanc's caches and OHIF scrolls fast too.
+const OHIF_JLS_ACCEPT =
+  "multipart/related; type=image/jls; transfer-syntax=1.2.840.10008.1.2.4.80";
+
+/** Fetch a DICOMweb frame with OHIF's JPEG-LS Accept header. */
+async function orthancWarmOhif(path, timeoutMs = 120000) {
+  const url = getOrthancBaseUrl() + path;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Authorization: getAuthHeader(),
+        Accept: OHIF_JLS_ACCEPT,
+      },
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(`Orthanc ${res.status} on ${path}`);
+    }
+    await res.arrayBuffer();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Warm one series' frames through the DICOMweb JPEG-LS path OHIF uses.
+ * seriesId = Orthanc series UUID; studyUid/seriesUid = DICOM UIDs.
+ * Returns {requests, errors}.
+ */
+async function warmOhifSeries(seriesId, studyUid, seriesUid) {
+  const raw = await orthancGet(`/series/${seriesId}/instances`, 30000);
+  const insts = Array.isArray(raw)
+    ? raw.map((x) => (typeof x === "string" ? { ID: x } : x))
+    : [];
+  if (!insts.length) return { requests: 0, errors: 0 };
+
+  const requests = [];
+  for (const inst of insts) {
+    const mt = inst.MainDicomTags || {};
+    const sop = mt.SOPInstanceUID;
+    if (!sop) continue;
+    const n =
+      parseInt(mt.NumberOfFrames || "1", 10) ||
+      (Array.isArray(inst.Instances) ? inst.Instances.length : 1) ||
+      1;
+    for (let f = 1; f <= Math.min(n, MAX_FRAMES_PER_SERIES); f++) {
+      requests.push(
+        `/dicom-web/studies/${studyUid}/series/${seriesUid}/instances/${sop}/frames/${f}`
+      );
+      if (requests.length >= MAX_FRAMES_PER_SERIES) break;
+    }
+    if (requests.length >= MAX_FRAMES_PER_SERIES) break;
+  }
+
+  let next = 0;
+  let errors = 0;
+  const worker = async () => {
+    while (next < requests.length) {
+      const url = requests[next++];
+      try {
+        await orthancWarmOhif(url);
+      } catch (e) {
+        errors += 1;
+      }
+    }
+  };
+  await Promise.all(
+    Array.from(
+      { length: Math.min(WARM_CONCURRENCY, requests.length) },
+      worker
+    )
+  );
+  return { requests: requests.length, errors };
+}
+
 function getJob(studyId) {
   return jobs.get(studyId) || null;
 }
@@ -439,6 +527,23 @@ async function runJob(job) {
 
   // Phase 2 + 3: per-series metadata + representative images via viewer endpoints
   job.phase = "series";
+
+  // Resolve DICOM UIDs once (cheap metadata) for the OHIF warming path.
+  let studyUid = null;
+  const seriesUidByOrthancId = new Map();
+  try {
+    const st = await orthancGet(`/studies/${studyId}`, 30000);
+    studyUid = (st.MainDicomTags || {}).StudyInstanceUID || null;
+    const metas = await orthancGet(`/studies/${studyId}/series`, 30000);
+    for (const m of Array.isArray(metas) ? metas : []) {
+      if (m && m.ID && m.MainDicomTags && m.MainDicomTags.SeriesInstanceUID) {
+        seriesUidByOrthancId.set(m.ID, m.MainDicomTags.SeriesInstanceUID);
+      }
+    }
+  } catch (e) {
+    console.log(`[PRELOAD] ${studyId.slice(0, 8)} UID resolution failed: ${e.message}`);
+  }
+
   for (const seriesId of seriesIds) {
     try {
       const series = await orthancGet(`/osimis-viewer/series/${seriesId}`);
@@ -543,6 +648,25 @@ async function runJob(job) {
               })
             )
           );
+        }
+        // OHIF path: warm the same frames via DICOMweb JPEG-LS (the exact
+        // requests OHIF will make) so OHIF scrolls as fast as Osimis.
+        if (studyUid && seriesUidByOrthancId.has(seriesId)) {
+          try {
+            const ohif = await warmOhifSeries(
+              seriesId,
+              studyUid,
+              seriesUidByOrthancId.get(seriesId)
+            );
+            console.log(
+              `[PRELOAD:OHIF] ${studyId.slice(0, 8)} ${seriesId.slice(0, 8)} warmed ${ohif.requests} frames (${ohif.errors} fails)`
+            );
+            if (ohif.errors) {
+              job.error = job.error || `${ohif.errors} OHIF warm fails`;
+            }
+          } catch (e) {
+            job.error = job.error || `OHIF warm: ${e.message}`;
+          }
         }
         job.doneInstances += 1;
       } catch (e) {
@@ -675,6 +799,25 @@ async function runSeriesJob(job) {
           })
         )
       );
+    }
+
+    // OHIF path: also warm this series through DICOMweb JPEG-LS so the
+    // series opens instantly in OHIF (not just in the Osimis viewer).
+    try {
+      const s = await orthancGet(`/series/${job.seriesId}`, 30000);
+      let studyUid = null;
+      if (s && s.ParentStudy) {
+        const st = await orthancGet(`/studies/${s.ParentStudy}`, 30000);
+        studyUid = (st.MainDicomTags || {}).StudyInstanceUID || null;
+      }
+      if (studyUid && job.seriesUid) {
+        const ohif = await warmOhifSeries(job.seriesId, studyUid, job.seriesUid);
+        console.log(
+          `[PRELOAD:SERIES:OHIF] ${job.seriesUid.slice(0, 12)} warmed ${ohif.requests} frames (${ohif.errors} fails)`
+        );
+      }
+    } catch (e) {
+      job.error = job.error || `OHIF warm: ${e.message}`;
     }
 
     job.status = "done";
