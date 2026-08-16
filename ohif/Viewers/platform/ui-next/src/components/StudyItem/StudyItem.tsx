@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 import { ThumbnailList } from '../ThumbnailList';
+import { PreloadStudyControl } from '../Thumbnail/PreloadStudyControl';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../Accordion';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../Tooltip';
@@ -79,6 +80,7 @@ const StudyItem = ({
             event.stopPropagation();
           }}
         >
+          {isExpanded && <PreloadStudyControl StudyInstanceUID={StudyInstanceUID} />}
           {isExpanded && displaySets && (
             <ThumbnailList
               thumbnails={displaySets}

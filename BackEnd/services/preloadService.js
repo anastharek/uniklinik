@@ -256,6 +256,27 @@ async function orthancFind(level, query, limit = 50) {
   }
 }
 
+/**
+ * Resolve a study identifier to the Orthanc internal study ID.
+ * Accepts EITHER an Orthanc ID (UUID-ish, already internal) OR a DICOM
+ * StudyInstanceUID (dotted numeric) — the OHIF study browser only knows the
+ * DICOM UID, so we map it via /tools/find. Returns null when unresolvable.
+ */
+async function resolveStudyId(studyIdOrUid) {
+  if (!studyIdOrUid) return null;
+  const v = String(studyIdOrUid).trim();
+  // DICOM UIDs are dotted numerics (e.g. 1.2.840.113619...); Orthanc internal
+  // IDs are UUID-ish (hex + hyphens). Only resolve the dotted form.
+  if (!/^[0-9.]+$/.test(v)) return v;
+  try {
+    const found = await orthancFind("Study", { StudyInstanceUID: v }, 1);
+    return (found && found[0]) || null;
+  } catch (e) {
+    console.log(`[PRELOAD] study UID resolution failed (${v}): ${e.message}`);
+    return null;
+  }
+}
+
 /** Fetch a binary resource (viewer image) to warm the viewer plugin cache */
 async function orthancWarm(path, timeoutMs = 120000) {
   // Default 2 min (was 15 min) — same reasoning as orthancGet: a single
@@ -985,6 +1006,7 @@ module.exports = {
   getJob,
   getActiveJobs,
   getCachedStatus,
+  resolveStudyId,
   isFresh,
   getChangesLast,
   getIngestRate,

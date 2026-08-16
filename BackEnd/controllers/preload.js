@@ -7,10 +7,13 @@ function noStore(res) {
 }
 
 const startPreload = async function (req, res) {
-  const { studyId } = req.params;
+  let { studyId } = req.params;
   if (!studyId) {
     return res.status(400).json({ message: "studyId is required" });
   }
+  // Accept DICOM StudyInstanceUID (dotted numeric, e.g. from the OHIF study
+  // browser) as well as the Orthanc internal study ID.
+  studyId = (await preloadService.resolveStudyId(studyId)) || studyId;
   const job = await preloadService.startPreload(studyId);
   res.json({
     status: job.status,
@@ -80,7 +83,9 @@ const getSeriesPreloadStatus = async function (req, res) {
 };
 
 const getPreloadStatus = async function (req, res) {
-  const { studyId } = req.params;
+  let { studyId } = req.params;
+  // Accept DICOM StudyInstanceUID as well as the Orthanc internal study ID.
+  studyId = (await preloadService.resolveStudyId(studyId)) || studyId;
   const job = preloadService.getJob(studyId);
   if (!job) {
     return res.json({ status: "none", studyId });

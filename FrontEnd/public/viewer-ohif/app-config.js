@@ -11,7 +11,11 @@ window.config = {
   extensions: [],
   modes: [],
   customizationService: {},
-  showStudyList: true,
+  // PUTRACNS patient-scoped viewer: showStudyList=false removes the worklist
+  // route and the top-left back arrow (isReturnEnabled=false in ViewerHeader).
+  // Users enter via PUTRA CNS with ?StudyInstanceUIDs=... and cannot navigate
+  // back to the general study/patient list (see ViewerHeader no-op too).
+  showStudyList: false,
   maxNumberOfWebWorkers: 3,
   // Cap cornerstone's decoded-image cache at 256MB (default is 3GB!). The
   // stack prefetcher fills ~1/4 of the cache with the active series; for the
