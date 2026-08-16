@@ -9,7 +9,12 @@ const reverseProxyGet = async function (req, res) {
     const sep = orthancCalledApi.includes('?') ? '&' : '?';
     orthancCalledApi += sep + 'contentType=application/dicom';
   }
-  await ReverseProxy.streamToRes(orthancCalledApi, "GET", undefined, res);
+  // Forward the client's Accept header (WADO-RS transfer-syntax preference)
+  // so Orthanc can transcode frames (e.g. JPEG-LS) on the fly.
+  const extraHeaders = req.headers && req.headers.accept
+    ? { Accept: req.headers.accept }
+    : undefined;
+  await ReverseProxy.streamToRes(orthancCalledApi, "GET", undefined, res, extraHeaders);
 };
 const reverseProxyGetStudy = async function (ID) {
   const apiAdress = `/api/studies/${ID}`

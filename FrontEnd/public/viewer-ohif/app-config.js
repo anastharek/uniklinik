@@ -39,6 +39,10 @@ window.config = {
         qidoSupportsIncludeField: true,
         imageRendering: 'wadors',
         thumbnailRendering: 'wadors',
+        // Serve frames as JPEG-LS (lossless) instead of raw 524KB pixel data:
+        // ~281KB/frame for CT -> faster scroll, less bandwidth. Orthanc
+        // transcodes on the fly; CharLS decoder is bundled in the viewer.
+        requestTransferSyntaxUID: '1.2.840.10008.1.2.4.80',
         enableStudyLazyLoad: true,
         supportsFuzzyMatching: false,
         supportsWildcard: true,

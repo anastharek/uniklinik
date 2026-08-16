@@ -13,18 +13,24 @@ const ReverseProxy = {
         return this.address + ':' + this.port
     },
 
-    makeOptions(method, api, data) {
+    makeOptions(method, api, data, extraHeaders) {
         const serverString = this.getOrthancAddress() + api
 
         let options = null
 
         if (method === 'GET' || method === 'DELETE') {
+            const headers = {
+                'Forwarded': 'by=localhost;for=localhost;host=' + process.env.DOMAIN_ADDRESS + '/api;proto=' + process.env.DOMAIN_PROTOCOL
+            }
+            // Forward the client's Accept header (e.g. WADO-RS transfer-syntax
+            // preference like JPEG-LS) so Orthanc can transcode on the fly.
+            if (extraHeaders && extraHeaders.Accept) {
+                headers['Accept'] = extraHeaders.Accept
+            }
             options = {
                 method: method,
                 url: serverString,
-                headers: {
-                    'Forwarded': 'by=localhost;for=localhost;host=' + process.env.DOMAIN_ADDRESS + '/api;proto=' + process.env.DOMAIN_PROTOCOL
-                },
+                headers: headers,
                 username: this.username,
                 password: this.password,
             }
@@ -80,8 +86,8 @@ const ReverseProxy = {
         return options
     },
 
-    streamToRes(api, method, data, res) {
-        return got(this.makeOptions(method, api, data))
+    streamToRes(api, method, data, res, extraHeaders) {
+        return got(this.makeOptions(method, api, data, extraHeaders))
             .on('response',async function (response) {
                 if (response.statusCode === 200) {
                     // Forward essential upstream headers — got.pipe() does NOT copy
