@@ -87,3 +87,57 @@ input[type='range'].scrollbarInput::-moz-range-track {
 .scrollbarInput:focus {
   outline: none;
 }
+/* Mobile-only visual handle (hidden on desktop) */
+.mobileHandle {
+  display: none;
+}
+
+/* ==========================================================================
+   MOBILE (max-width: 768px) — larger, high-contrast stack scroll control.
+   Desktop layout is untouched (rules below live inside the media query).
+   The range input stays as an invisible drag surface with a generous touch
+   zone; the visible handle is a plain div (engine-independent position).
+   ========================================================================== */
+@media (max-width: 768px) {
+  .scrollbarContainer {
+    right: max(0px, env(safe-area-inset-right, 0px));
+    padding: 8px 4px 8px 4px;
+    touch-action: none; /* dragging the handle must never scroll the page */
+  }
+
+  /* Invisible touch/hit zone: ~48px wide (requirement: 32-44px min). */
+  .scrollbarInner {
+    width: 48px;
+  }
+
+  /* Widen the input hit area after its 90deg rotation and hide its thumb:
+     the input is now purely the drag surface. */
+  .scrollbarInput {
+    left: 42px;
+    height: 48px;
+  }
+
+  input[type='range'].scrollbarInput::-webkit-slider-thumb {
+    opacity: 0;
+  }
+
+  input[type='range'].scrollbarInput::-moz-range-thumb {
+    opacity: 0;
+  }
+
+  /* Visible handle: white, rounded, 10px wide x 64px long, near the right
+     edge with a small margin. pointer-events:none so touches pass through
+     to the range input underneath. */
+  .mobileHandle {
+    display: block;
+    position: absolute;
+    right: 6px;
+    width: 10px;
+    height: 64px;
+    background-color: hsl(0 0% 100%);
+    border-radius: 10px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.85);
+    pointer-events: none;
+    z-index: 11;
+  }
+}

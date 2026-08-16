@@ -27,6 +27,15 @@ export const ImageScrollbar: React.FC<ImageScrollbarProps> = ({
     width: height, // This is intentional for the rotation
   };
 
+  // Mobile-only visual handle: an absolutely positioned div that mirrors the
+  // input value. The range input itself stays as the (invisible) drag surface
+  // with a generous touch zone; a plain div is engine-independent, so the
+  // handle renders in exactly the same spot on Safari, Chrome and Firefox.
+  const pct = max > 0 ? value / max : 0;
+  const handleStyle = {
+    top: `calc(${(pct * 100).toFixed(3)}% - ${(64 * pct).toFixed(2)}px)`,
+  };
+
   const handleChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const intValue = parseInt(event.target.value, 10);
@@ -66,6 +75,7 @@ export const ImageScrollbar: React.FC<ImageScrollbarProps> = ({
           aria-label="Image navigation scrollbar"
           data-testid="image-scrollbar-input"
         />
+        <div className={styles.mobileHandle} style={handleStyle} aria-hidden="true" />
       </div>
     </div>
   );

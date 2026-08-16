@@ -237,7 +237,10 @@ module.exports = (env, argv, { SRC_DIR, ENTRY }) => {
   if (isProdBuild) {
     config.optimization.minimizer = [
       new TerserJSPlugin({
-        parallel: true,
+        // Default parallel=true spawns os.cpus()-1 workers; on memory-tight
+        // hosts with no swap this OOM-hangs the build at the Terser phase.
+        // Allow capping via env (PUTRACNS: TERSER_PARALLEL=2).
+        parallel: Number(process.env.TERSER_PARALLEL || 2),
         terserOptions: {},
       }),
     ];

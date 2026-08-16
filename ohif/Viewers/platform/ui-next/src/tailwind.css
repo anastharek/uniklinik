@@ -264,3 +264,57 @@ input[type='number'] {
   user-select: none;
   opacity: 0.5;
 }
+
+/* ==========================================================================
+   MOBILE (max-width: 768px) — single-row horizontally scrollable top toolbar
+   Desktop layout is untouched: every rule below lives inside the media query.
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Reclaim space for the toolbar: logo wordmark + patient info block are
+     the biggest chrome consumers on phones. Return arrow & settings stay. */
+  .ohif-header-logo {
+    display: none;
+  }
+  .ohif-header-patientinfo {
+    display: none;
+  }
+
+  /* The centered container becomes a full-width strip. pointer-events:none
+     lets taps fall through to the side controls (return/settings) which sit
+     above/below it; the toolbar row itself re-enables pointer events. */
+  .ohif-header-center {
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    pointer-events: none;
+    padding-left: 44px; /* clear the return arrow */
+    padding-right: calc(128px + env(safe-area-inset-right, 0px)); /* clear undo/redo + settings */
+  }
+
+  .ohif-toolbar-row {
+    justify-content: flex-start;
+    flex-wrap: nowrap; /* never wrap into a second row */
+    overflow-x: auto; /* swipeable single row */
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; /* iOS momentum */
+    overscroll-behavior-x: contain;
+    scrollbar-width: none; /* Firefox: hide scrollbar */
+    touch-action: pan-x; /* horizontal swipe scrolls; tap still clicks */
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    pointer-events: auto;
+  }
+  .ohif-toolbar-row::-webkit-scrollbar {
+    display: none; /* Chrome/Safari: hide scrollbar */
+  }
+
+  /* buttons keep their natural size (no shrink) + comfortable touch target */
+  .ohif-toolbar-row > * {
+    flex: 0 0 auto;
+  }
+  .ohif-toolbar-row button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
