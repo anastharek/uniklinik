@@ -29,10 +29,18 @@ on:
 
 env:
   IMAGE_NAME: anastharek/pcns-frontend-base
+  # Target platform. The Mac mini is arm64 (Apple Silicon), and the PACS
+  # runtime images are built natively as arm64 — so the pre-built base MUST
+  # also be arm64, otherwise `docker pull` fails on the Mac mini.
+  PLATFORM: linux/arm64
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    # arm64 GitHub-hosted runner — builds arm64 natively (no emulation).
+    # NOTE: if this label is unavailable on the account/plan, switch to
+    # `ubuntu-latest` and set PLATFORM to linux/amd64 above (slower, emulated
+    # on the Mac mini but functional).
+    runs-on: ubuntu-24.04-arm
     # Generous timeout — OHIF build is heavy
     timeout-minutes: 60
 
@@ -79,6 +87,7 @@ jobs:
           context: .
           file: ./Dockerfile.frontend-base
           push: true
+          platforms: ${{ env.PLATFORM }}
           tags: |
             ${{ env.IMAGE_NAME }}:${{ steps.ver.outputs.version }}
             ${{ env.IMAGE_NAME }}:latest
