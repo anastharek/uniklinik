@@ -1,56 +1,25 @@
 # =============================================================================
-# PUTRACNS — Multi-stage Docker build (optimized)
+# PUTRACNS — THIN runtime image (uses pre-built frontend base)
 # =============================================================================
-# Requires: DOCKER_BUILDKIT=1 (enabled by default in Docker 23+)
+# Purpose:
+#   This is the FAST build. It only assembles the runtime image by copying
+#   the already-built frontend artifacts FROM the pre-built base image.
+#   No webpack. No Terser. No 4 GB Node heap. ~1-2 min, <500 MB RAM.
 #
-# Build:  docker compose build --no-cache   (full rebuild)
-#         docker compose build               (incremental, uses cache)
+# Build (on the Mac mini — the normal, frequent build):
+#   DOCKER_BUILDKIT=1 docker build \
+#     --build-arg FRONTEND_BASE=anastharek/pcns-frontend-base:v9 \
+#     -t anastharek/pcns:fastpacs \
+#     .
+#
+# NOTE: BuildKit must be able to resolve the base image tag. Pull it first to
+#       be safe:  docker pull anastharek/pcns-frontend-base:v9
+#
+# Fallback: the original all-in-one Dockerfile is preserved as Dockerfile.full
 # =============================================================================
 
-# ─── Shared base: Yarn config ────────────────────────────────────────────
-FROM node:16.20.0 AS yarn-base
-RUN yarn config set registry https://registry.npmjs.org \
- && yarn config set network-timeout 600000 \
- && yarn config set prefer-offline true \
- && yarn config set progress false
-
-
-# ─── React Frontend build ────────────────────────────────────────────────
-FROM yarn-base AS react
-WORKDIR /app
-
-# Layer 1: Dependencies (cached unless package.json/yarn.lock change)
-COPY ./FrontEnd/package.json ./FrontEnd/yarn.lock* ./
-RUN --mount=type=cache,target=/root/.yarn \
-    yarn install --ignore-engines
-
-# Layer 2: Source + build (only re-runs on source changes)
-COPY ./FrontEnd .
-ENV NODE_OPTIONS="--max-old-space-size=2048"
-ENV GENERATE_SOURCEMAP=false
-RUN npm run build
-
-
-# ─── OHIF Viewer build (official v3.12.x — requires Node >=18) ───────────
-FROM node:20 AS ohif
-WORKDIR /ohif/Viewers
-RUN yarn config set registry https://registry.npmjs.org \
- && yarn config set network-timeout 600000 \
- && yarn config set prefer-offline true \
- && yarn config set progress false
-COPY ./ohif/Viewers .
-RUN --mount=type=cache,target=/yarn-cache \
-    YARN_CACHE_FOLDER=/yarn-cache yarn install --network-timeout 600000 --frozen-lockfile \
- && PUBLIC_URL=/viewer-ohif/ NODE_OPTIONS=--max-old-space-size=4096 yarn run build
-
-
-# ─── Stone Web Viewer assets ─────────────────────────────────────────────
-FROM alpine:3.20 AS stone
-RUN apk --no-cache add unzip
-WORKDIR /tmp
-COPY ["stone/wasm-binaries.zip", "."]
-RUN mkdir -p /stone && unzip -q wasm-binaries.zip -d /stone
-
+ARG FRONTEND_BASE=anastharek/pcns-frontend-base:v9
+FROM ${FRONTEND_BASE} AS frontend-base
 
 # ─── Final runtime image ─────────────────────────────────────────────────
 FROM node:20 AS final
@@ -69,12 +38,11 @@ RUN --mount=type=cache,target=/root/.yarn \
 # Layer 2: Application code
 COPY ./BackEnd .
 
-# Gather frontend artifacts from build stages
+# ── Gather frontend artifacts from the PRE-BUILT base image (no rebuild!) ──
 RUN mkdir -p build
-COPY --from=react    /app/build                              ./build/
-COPY --from=ohif     /ohif/Viewers/platform/app/dist         ./build/viewer-ohif/
-COPY --from=stone    /stone/wasm-binaries/StoneWebViewer      ./build/viewer-stone/
-COPY --from=react    /app/build/viewer-ohif/app-config.js     ./build/viewer-ohif/
+COPY --from=frontend-base /artifacts/build          ./build/
+COPY --from=frontend-base /artifacts/viewer-ohif    ./build/viewer-ohif/
+COPY --from=frontend-base /artifacts/viewer-stone   ./build/viewer-stone/
 
 EXPOSE 4000
 
