@@ -336,7 +336,7 @@ const AdminCaseList = () => {
         <SearchForm key={random} setRandom={setRandom} setReports={setReports} />
       </div>
       <br />
-      <AdminCaseListTable key={random} reports={reports} setDelete={setDelete} />
+      <AdminCaseListTable key={random} reports={reports} setDelete={setDelete} refresh={fetchData} />
       <Modal show={show} id="delete" size="sm">
         <Modal.Header closeButton>
           <h2 className="card-title">Delete Report</h2>

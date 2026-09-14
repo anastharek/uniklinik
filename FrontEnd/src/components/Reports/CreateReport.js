@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Suspense } from "react";
-import Logo from "../../assets/images/Padimedical.png"; //tukar report template - logo customer
+import Logo from "../../assets/images/fast-logo.png"; //tukar report template - logo customer (FASTPACS default)
 import { Link, useHistory, useLocation, useParams } from "react-router-dom";
 import { Button } from "react-bootstrap";
 import { useSelector } from "react-redux";
@@ -39,7 +39,7 @@ import SweetAlert from "react-bootstrap-sweetalert";
 import ReportPoopup from "./ReportPopup/ReportPopup";
 import { Avatar, Tooltip } from "@material-ui/core";
 import apis from "../../services/apis";
-import LogoData from "./LogoData";
+import LogoData, { DEFAULT_LOGO_OPTION } from "./LogoData";
 import moment from "moment";
 const DynamicTable = React.lazy(() => import("./DynamicTable/DynamicTable"));
 
@@ -91,6 +91,7 @@ const CreateReport = () => {
     useLocation();
   const [isfinalize, setFinalize] = useState(false);
   const [data, setData] = useState({
+    logo: Logo, //tukar report template - default logo = FAST logo (can be overridden by the logo picker)
     patient_name: pname,
     tag: "",
     study_type: study_type,
@@ -1028,7 +1029,7 @@ const CreateReport = () => {
                   "https://strokesvr.padimedical.com/wsi/app/index.html?series=" + id //For rishab to adds on - add SeriesOrthancID
                 }
                 osimis_link={
-                  "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
+                  "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
                   id
                 }
                 OhifLink={"/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" + StudyInstanceUID}
@@ -1109,7 +1110,7 @@ const CreateReport = () => {
                   {/*tukar nama - Upload to Upload Radiologist Signature */}
                 </label>
                 <Select
-                  // defaultValue={selectedOption}
+                  defaultValue={DEFAULT_LOGO_OPTION}
                   onChange={encodeLogoImageFileAsURL}
                   options={LogoData}
                 />

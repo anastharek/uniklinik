@@ -18,7 +18,7 @@ function formateDateStr(str) {
   return `${str?.slice(6)}/${str?.slice(4, 6)}/${str?.slice(0, 4)}`;
 }
 
-export default function AdminCaseListTable({ reports, setDelete }) {
+export default function AdminCaseListTable({ reports, setDelete, refresh }) {
   const roles = useSelector((state) => state?.PadiMedical?.roles);
   const columns = useMemo(
     () => [
@@ -126,7 +126,7 @@ export default function AdminCaseListTable({ reports, setDelete }) {
             StudyInstanceUID={row.values.StudyInstanceUID}
             onDelete={()=>{}}
             // row={row}
-            refresh={()=>{}}
+            refresh={refresh}
             pname={row.values.patient_name}
             pid={row.values.patient_id}
             StudyDescription={row.values.study_type}
@@ -151,7 +151,7 @@ export default function AdminCaseListTable({ reports, setDelete }) {
                 row.values.study_id  //For rishab to adds on - add SeriesOrthancID
               }
               osimis_link={
-                "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
+                "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
                 row.values.study_id
               }
               OhifLink={"/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" + row.values.StudyInstanceUID}
@@ -234,7 +234,7 @@ export default function AdminCaseListTable({ reports, setDelete }) {
               className="otjs-button otjs-button-blue"
               onClick={() => {
                 navigator.clipboard.writeText(
-                  "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
+                  "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
                     row.values.study_id
                 );
                 toast.success("Link Copied");
@@ -258,7 +258,7 @@ export default function AdminCaseListTable({ reports, setDelete }) {
               className="otjs-button otjs-button-blue"
               onClick={() => {
                 navigator.clipboard.writeText(
-                  "https://strokesvr.padimedical.com/stone-webviewer/index.html?study=" +
+                  "https://fastpacsviewer.anzverse.com/stone-webviewer/index.html?study=" +
                   row.values.StudyInstanceUID,
                 );
                 toast.success("Link Copied");

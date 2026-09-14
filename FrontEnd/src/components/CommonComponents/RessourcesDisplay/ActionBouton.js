@@ -6,6 +6,7 @@ import Metadata from "../../Metadata/Metadata";
 import Modify from '../../Modify/Modify'
 import { toast } from "react-toastify";
 import CreateDicom from "../../CreateDicom/CreateDicom";
+import CreateNewStudy from "../../CreateNewStudy/CreateNewStudy";
 import { CreateReportButton } from "../../CreateReport/CreateReportButton";
 import { ShareButton } from "../../Share/ShareButton";
 import { CardShareButton } from "../../CardShare/CardShareButton";
@@ -122,6 +123,9 @@ class ActionBouton extends Component {
             }
             {this.props.roles.create_report && (
               <CreateReportButton {...this.props} />
+            )}
+            {this.props.roles.create_new_study && (
+              <CreateNewStudy {...this.props} />
             )}
             {this.props.roles.sharing && <ShareButton {...this.props} />}
             {this.props.roles.card_sharing && (

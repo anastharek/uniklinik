@@ -52,10 +52,17 @@ function getReportFormate(
   addendum
 ) {
   let array = [];
+  // A table is only usable if it actually has rows AND at least one cell.
+  // An empty table like [[]] (sent when a report has no table) makes pdfmake
+  // throw internally ("moveDown is not a function") and the PDF never generates.
+  const hasTable =
+    Array.isArray(tableData) &&
+    tableData.length > 0 &&
+    tableData.some((row) => Array.isArray(row) && row.length > 0);
   if (text1 && text2) {
     array.push({ text: text1 });
     
-    if (tableData) {
+    if (hasTable) {
       array.push({
         margin: [0, 10, 0, 30],
         columns: [
@@ -65,8 +72,13 @@ function getReportFormate(
             table: {
               headerRows: 1,
               body: tableData,
+              widths: tableData[0] ? tableData[0].map(() => "auto") : "auto",
             },
             layout: {
+              hLineWidth: () => 0.5,
+              vLineWidth: () => 0.5,
+              hLineColor: () => "#000000",
+              vLineColor: () => "#000000",
               paddingLeft: (i, node) => 10,
               paddingRight: (i, node) => 10,
               paddingTop: (i, node) => 5,
@@ -79,8 +91,8 @@ function getReportFormate(
     }
 
     array.push({
-      text: text2.split("Reported by:")[0],
-      margin: [0, -50, 0, 0],
+      text: text2.split("Reported by:")[0] || "",
+      margin: [0, 10, 0, 0],
     });
     
     array.push({ text: "Reported by", margin: [0, 20, 0, 5] });
@@ -91,10 +103,10 @@ function getReportFormate(
         margin: [-5, 0, 0, 0],
       });
     }
-    array.push({ text: text2.split("Reported by:")[1] });
+    array.push({ text: text2.split("Reported by:")[1] || "" });
     
   } else {
-    if (tableData) {
+    if (hasTable) {
       array.push({
         columns: [
           { width: "*", text: "" },
@@ -115,7 +127,7 @@ function getReportFormate(
         ],
       });
     }
-    array.push({ text: text.split("Reported by:")[0] });
+    array.push({ text: text.split("Reported by:")[0] || "" });
     
     array.push({ text: "Reported by", margin: [0, 20, 0, 5] });
     if (signature) {
@@ -125,7 +137,7 @@ function getReportFormate(
         margin: [-20, 0, 0, 0],
       });
     }
-    array.push({ text: text.split("Reported by:")[1] });
+    array.push({ text: text.split("Reported by:")[1] || "" });
     
   }
 
@@ -289,7 +301,7 @@ async function GeneratePDF(report_data) {
       opacity: 0.2,
       absolutePosition: { y: 300 },
     },
-    pageMargins: [ 40, 230, 40, 60 ], //[left, top, right, bottom] #pdf-margin
+    pageMargins: [ 40, 190, 40, 60 ], //[left, top, right, bottom] #pdf-margin
     header: [
       {
         image: await getBase64ImageFromURL(logo),
@@ -384,9 +396,9 @@ async function GeneratePDF(report_data) {
       },
     ],*/
     defaultStyle: {
-      alignment: "justify",
+      alignment: "left",
       fontSize: 10,
-      fontFamily: "NimbusSans",
+      fontFamily: "Roboto",
       color: "#000",
       lineHeight: 1.2,
     },

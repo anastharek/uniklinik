@@ -278,7 +278,7 @@ const PatientStudyTable = ({
                 row.original.ID //For rishab to adds on - add SeriesOrthancID
               }
               osimis_link={
-                "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
+                "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
                 row.original.ID
               }
               OhifLink={
@@ -350,7 +350,7 @@ const PatientStudyTable = ({
           const state = preloaded[studyId];
           const prog = preloadProgress[studyId];
           const osimisLink =
-            "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
+            "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
             studyId;
           const handlePreload = () => {
             if (preloadRefs.current[studyId] || preloaded[studyId] === "done") {

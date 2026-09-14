@@ -23,6 +23,14 @@ const importDicom = {
             tags["OtherPatientIDs"] = tags["NRIC"]
             delete tags["NRIC"]
         }
+        // Ensure a Modality is ALWAYS present.
+        // Without it, Orthanc stores the Secondary-Capture series with no
+        // Modality, and OHIF's getModalities() throws
+        // "Cannot read properties of undefined (reading 'length')".
+        // 'OT' (Other) is the correct DICOM fallback for non-derived images.
+        if(!tags["Modality"] || !String(tags["Modality"]).trim()){
+            tags["Modality"] = 'OT'
+        }
         let payload = {
             "Content": content,
             "Tags": tags,

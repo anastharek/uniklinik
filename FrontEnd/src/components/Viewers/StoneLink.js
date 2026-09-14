@@ -9,7 +9,7 @@ export default class StoneLink extends Component {
   render = () => {
     return (
                                                                                                       //tukar link
-      this.props.orthancID === undefined ? null : <Link className={this.props.className} to={{pathname:"https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" + this.props.orthancID}} target='_blank'>OSIMIS Viewer</Link>
+      this.props.orthancID === undefined ? null : <Link className={this.props.className} to={{pathname:"https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" + this.props.orthancID}} target='_blank'>OSIMIS Viewer</Link>
     )
   } 
 }

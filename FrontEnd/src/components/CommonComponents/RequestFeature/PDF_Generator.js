@@ -283,7 +283,7 @@ async function GeneratePDF(report_data) {
     defaultStyle: {
       alignment: "justify",
       fontSize: 11,
-      fontFamily: "NimbusSans",
+      fontFamily: "Roboto",
       color: "#000",
       lineHeight: 1.5,
     },

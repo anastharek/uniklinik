@@ -125,7 +125,7 @@ export default function RequestTable({
                 row.values.study_id  //For rishab to adds on - add SeriesOrthancID
               }
               osimis_link={
-                "https://strokesvr.padimedical.com/osimis-viewer/app/index.html?study=" +
+                "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
                 row.values.study_id
               }
               OhifLink={"/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" + row.values.StudyInstanceUID}

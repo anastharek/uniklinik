@@ -1,9 +1,10 @@
 import React from 'react'
-import { InputGroup, Row, FormControl } from 'react-bootstrap'
-import { TagTable } from '../CommonComponents/RessourcesDisplay/ReactTable/TagTable'
+import { InputGroup, Row, Col, FormControl } from 'react-bootstrap'
 import Button from 'react-bootstrap/Button'
 import { toast } from 'react-toastify'
+import { connect } from 'react-redux'
 import apis from '../../services/apis'
+import activity from '../../services/activity'
 import jsPDF from 'jspdf'
 
 import pdfjsLib from 'pdfjs-dist';
@@ -12,36 +13,65 @@ import './OpenSans-Regular-normal';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
-const REQUIRED_TAGS = ['PatientID', 'PatientName', 'SeriesDescription', 'StudyDescription']
+const REQUIRED_TAGS = ['PatientID', 'PatientName', 'StudyDescription']
 
-export class CreateReport extends React.Component {
+class CreateReportComponent extends React.Component {
 
   state = {
     tags: [],
     files: [],
-    reportDetails: ''
-  }
-
-  handleDataChange = (oldValue, newValue, row, column) => {
-    let tags = [...this.state.tags];
-    if (column === 'Value') {
-      tags.find(x => x.TagName === row.TagName)[column] = newValue;
-    } else {
-      tags = tags.filter(x => x.TagName !== row.TagName);
-    }
-    this.setState({
-      tags
-    })
+    reportDetails: '',
+    showMoreMetadata: false
   }
 
   _getTags = () => {
     let tags = {};
     this.state.tags.forEach(tag => {
-      if (tag.Value !== '[auto]' && !tag.Value.startsWith("[inherited]")) {
+      if (tag.Value && tag.Value !== '[auto]' && !tag.Value.startsWith("[inherited]")) {
         tags[tag.TagName] = tag.Value;
       }
     })
     return tags;
+  }
+
+  _todayDicomDate = () => {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}${mm}${dd}`;
+  }
+
+  _assignToCurrentUser = async (response) => {
+    try {
+      const { roles } = this.props;
+      if (!response || !response.ParentStudy || !roles || !roles.username) {
+        return;
+      }
+      const studyDetails = await apis.content.getStudiesDetails(response.ParentStudy);
+      const patient_name = studyDetails?.PatientMainDicomTags?.PatientName || '';
+      const patient_id = studyDetails?.PatientMainDicomTags?.PatientID || '';
+      const StudyInstanceUID = studyDetails?.MainDicomTags?.StudyInstanceUID || '';
+      const study_date = studyDetails?.MainDicomTags?.StudyDate || '';
+      const study_id = studyDetails?.ID || response.ParentStudy;
+      const study_type = studyDetails?.MainDicomTags?.StudyDescription || '';
+      const accesor = studyDetails?.MainDicomTags?.AccessionNumber || '';
+      const doctors = [roles.uploader_of
+        ? `Dr. ${roles.uploader_of_name} (${roles.uploader_of})`
+        : `Dr. ${roles.firstname} (${roles.username})`];
+      await apis.caseList.assignDoctor(
+        study_id,
+        patient_name,
+        patient_id,
+        accesor,
+        study_type,
+        study_date,
+        doctors,
+        StudyInstanceUID
+      );
+      activity.create_activity("IMPORT", { patient_name, patient_id });
+    } catch (error) {
+      console.error('Failed to auto-assign study to user', error);
+    }
   }
 
   handleNewTagChange = (e) => {
@@ -188,6 +218,7 @@ export class CreateReport extends React.Component {
       this.setState({
         uploadState: 'Uploaded'
       });
+      await this._assignToCurrentUser(response);
       toast.success(`Reports successfully created (Series : ${response.ParentSeries})`);
     } catch (error) {
       this.setState({
@@ -229,6 +260,12 @@ export class CreateReport extends React.Component {
           {
             TagName: 'StudyDescription',
             Value: '',
+            deletable: false,
+            editable: true
+          },
+          {
+            TagName: 'StudyDate',
+            Value: this._todayDicomDate(),
             deletable: false,
             editable: true
           },
@@ -304,23 +341,110 @@ export class CreateReport extends React.Component {
   }
 
   render() {
+    const { tags, showMoreMetadata, reportDetails } = this.state;
+
+    const getValue = (tagName) => {
+      const t = tags.find(x => x.TagName === tagName);
+      return t ? t.Value : '';
+    };
+    const setValue = (tagName, value) => {
+      this.setState({
+        tags: tags.map(t => t.TagName === tagName ? { ...t, Value: value } : t)
+      });
+    };
+
+    const primaryTags = ['PatientName', 'PatientID', 'StudyDescription', 'StudyDate'];
+    const extraTags = ['NRIC', 'Modality', 'AccessionNumber', 'SeriesDescription', 'SOPClassUID'];
+    const isAutoOrInherited = (t) => t.Value === '[auto]' || String(t.Value).startsWith('[inherited]');
+    const customTags = tags.filter(t =>
+      !primaryTags.includes(t.TagName) &&
+      !extraTags.includes(t.TagName) &&
+      !isAutoOrInherited(t)
+    );
+
+    const field = (label, tagName) => (
+      <div className="mb-3">
+        <FormControl
+          placeholder={label}
+          aria-label={label}
+          value={getValue(tagName)}
+          onChange={(e) => setValue(tagName, e.target.value)}
+        />
+      </div>
+    );
+
+    const dateField = (label, tagName) => {
+      const raw = getValue(tagName);
+      const iso = raw && raw.length === 8
+        ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`
+        : '';
+      return (
+        <div className="mb-3">
+          <FormControl
+            type="date"
+            aria-label={label}
+            value={iso}
+            onChange={(e) => setValue(tagName, e.target.value.replace(/-/g, ''))}
+          />
+        </div>
+      );
+    };
+
     return (
       <Row className="pb-3">
         <InputGroup style={{ marginBottom: 20 }}>
           <InputGroup.Text>Study details</InputGroup.Text>
           <FormControl onChange={({ target }) => this.setState({ reportDetails: target.value })} rows={8} as="textarea" aria-label="Report details" />
         </InputGroup>
-        <TagTable data={this.state.tags} onDataUpdate={this.handleDataChange} />
+
+        <Row className="mb-3">
+          <Col md={3}>{field('Patient Name', 'PatientName')}</Col>
+          <Col md={3}>{field('Patient ID', 'PatientID')}</Col>
+          <Col md={3}>{field('Study Description', 'StudyDescription')}</Col>
+          <Col md={3}>{dateField('Study Date', 'StudyDate')}</Col>
+        </Row>
+
+        <div className="mb-3">
+          <Button variant="outline-secondary" onClick={() => this.setState({ showMoreMetadata: !showMoreMetadata })}>
+            {showMoreMetadata ? '−' : '+'} Additional metadata
+          </Button>
+        </div>
+
+        {showMoreMetadata && (
+          <Row className="mb-3">
+            <Col md={4}>{field('NRIC', 'NRIC')}</Col>
+            <Col md={4}>{field('Modality', 'Modality')}</Col>
+            <Col md={4}>{field('Accession Number', 'AccessionNumber')}</Col>
+            <Col md={4}>{field('Series Description', 'SeriesDescription')}</Col>
+            <Col md={4}>{field('SOP Class UID', 'SOPClassUID')}</Col>
+          </Row>
+        )}
+
+        {customTags.length > 0 && (
+          <Row className="mb-3">
+            {customTags.map(t => (
+              <Col md={4} key={t.TagName}>{field(t.TagName, t.TagName)}</Col>
+            ))}
+          </Row>
+        )}
+
         <div className={"w-100 d-flex justify-content-between otjs-button"}>
-          <InputGroup>
+          <InputGroup style={{ maxWidth: 480 }}>
             <InputGroup.Text>{"Add Tag"}</InputGroup.Text>
             <input onChange={this.handleNewTagChange} value={this.state.newTag} />
             <Button type={"submit"} onClick={this.handleNewTag}>{'+'}</Button>
           </InputGroup>
           <Button type={"submit"} onClick={this.createReport}
-            disabled={this.state.reportDetails === ''}>{'Create Report'}</Button>
+            disabled={reportDetails === ''}>{'Create Report'}</Button>
         </div>
       </Row>
     )
   }
 }
+
+const mapStateToProps = (state) => ({
+  roles: state.PadiMedical.roles,
+});
+
+export const CreateReport = connect(mapStateToProps)(CreateReportComponent);
+export default CreateReport;

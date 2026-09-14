@@ -327,7 +327,7 @@ const DoctorCaseList = () => {
         <SearchForm key={random} setRandom={setRandom} setReports={setReports} />
       </div>
       <br />
-      <DoctorListTable key={random} reports={reports} setDelete={setDelete} />
+      <DoctorListTable key={random} reports={reports} setDelete={setDelete} refresh={fetchData} />
       <Modal show={show} id="delete" size="sm">
         <Modal.Header closeButton>
           <h5 className="card-title">Unassigned Report</h5>
