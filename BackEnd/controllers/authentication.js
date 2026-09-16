@@ -177,6 +177,8 @@ const login = async function (req, res) {
       copy_osimis: infosUser.copy_osimis,
       copy_stone: infosUser.copy_stone,
       copy_download_zip: infosUser.copy_download_zip,
+      copy_ai_viewer: infosUser.copy_ai_viewer,
+      create_new_study: infosUser.create_new_study,
       main_table_modality_view: infosUser.main_table_modality_view,
       delete_dataset: infosUser.delete_dataset,
 
@@ -186,8 +188,6 @@ const login = async function (req, res) {
       patient_management: infosUser.patient_management,
       view_radiant: infosUser.view_radiant,
       view_horos: infosUser.view_horos,
-      view_weasis: infosUser.view_weasis,
-      preload_osimis: infosUser.preload_osimis,
       view_osimis: infosUser.view_osimis,
       view_aiViewer: infosUser.view_aiViewer,
       download_report: infosUser.download_report,
@@ -260,7 +260,11 @@ const logOut = function (req, res) {
     req.ip
   );
   if (process.env.NODE_ENV != "test") {
-    res.cookie("tokenOrthancJs", "", { httpOnly: true });
+    res.cookie("tokenOrthancJs", "", {
+      httpOnly: true,
+      expires: new Date(0),
+      path: "/",
+    });
   }
   // let index = connected_client.findIndex(req.roles.username);
   // if (index != -1) {

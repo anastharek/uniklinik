@@ -16,6 +16,23 @@ var autoStartMonitoring = require("./model/monitoring/AutoStartMonitoring");
 
 const OTJSError = require("./Exceptions/OTJSError");
 const http = require("http").createServer(app);
+
+// CORS — allow the PUTRACNS viewer origin to call the external-login
+// endpoint and set the `external` cookie (DICOMweb study grants).
+const cors = require("cors");
+app.use(
+  cors({
+    origin: [
+      "https://uniklinikbbb.anzverse.com",
+      "https://uniklinikviewer.anzverse.com",
+      "https://uniklinikosimis.anzverse.com",
+      "http://localhost:3000",
+      "http://localhost:3001",
+    ],
+    credentials: true,
+  })
+);
+
 app.set("trust proxy", true);
 app.use(
   express.raw({ limit: "2000mb", type: ["application/dicom", "text/plain"] })
@@ -47,7 +64,7 @@ app.use(
   unless(
     "/",
     morgan(
-      ':remote-addr - [:date[clf]] ":method :url HTTPS/:http-version" :status ":user-agent" ":username"'
+      ':remote-addr - [:date[clf]] ":method :url HTTPS/:http-version" :status ":user-agent" ":username" :total-time[ms] :response-time[ms]'
     )
   )
 );

@@ -45,39 +45,61 @@ const VR_32BIT = ['OB', 'OD', 'OF', 'OL', 'OW', 'SQ', 'UC', 'UN', 'UR', 'UT'];
  * Returns 'EXPLICIT' or 'IMPLICIT'. Defaults to IMPLICIT if not found.
  */
 function detectDataTransferSyntax(buf) {
-  // Meta header is always Explicit VR LE. Scan for (0002,0010)
+  // Meta header is always Explicit VR LE. Walk it to find the TransferSyntaxUID
+  // (0002,0010) and the start of the data set.
   const tagBytes = Buffer.from([0x02, 0x00, 0x10, 0x00]); // (0002,0010) LE
   let offset = 132; // After preamble + DICM
-  
+  let tsValue = null;
+  let datasetStart = null;
+
   while (offset < buf.length - 8) {
     const group = buf.readUInt16LE(offset);
-    if (group !== 0x0002) break; // Left meta header, (0002,0010) not found
-    
-    if (buf[offset] === tagBytes[0] && buf[offset + 1] === tagBytes[1] &&
-        buf[offset + 2] === tagBytes[2] && buf[offset + 3] === tagBytes[3]) {
-      // Found (0002,0010) — read its value
-      const vr = buf.toString('ascii', offset + 4, offset + 6);
-      const valueLength = buf.readUInt16LE(offset + 6);
-      const value = buf.toString('ascii', offset + 8, offset + 8 + valueLength).replace(/\x00/g, '').trim();
-      // 1.2.840.10008.1.2 = Implicit VR LE (default DICOM)
-      return value === '1.2.840.10008.1.2' ? 'IMPLICIT' : 'EXPLICIT';
+    if (group !== 0x0002) {
+      datasetStart = offset;
+      break;
     }
-    
-    // Advance past this meta header tag (Explicit VR)
+
     const vr = buf.toString('ascii', offset + 4, offset + 6);
+    let valueLength, valueOffset;
     if (/^[A-Z]{2}$/.test(vr)) {
       if (VR_32BIT.includes(vr)) {
-        const len = buf.readUInt32LE(offset + 8);
-        offset += 12 + len;
+        valueLength = buf.readUInt32LE(offset + 8);
+        valueOffset = offset + 12;
       } else {
-        const len = buf.readUInt16LE(offset + 6);
-        offset += 8 + len;
+        valueLength = buf.readUInt16LE(offset + 6);
+        valueOffset = offset + 8;
       }
     } else {
-      break; // Invalid VR
+      break;
     }
+
+    const element = buf.readUInt16LE(offset + 2);
+    if (group === 0x0002 && element === 0x0010) {
+      tsValue = buf.toString('ascii', valueOffset, valueOffset + valueLength).replace(/\x00/g, '').trim();
+    }
+    offset = valueOffset + valueLength;
   }
-  
+
+  // Known uncompressed transfer syntaxes
+  if (tsValue === '1.2.840.10008.1.2.1' || tsValue === '1.2.840.10008.1.2.2') {
+    return 'EXPLICIT';
+  }
+  if (tsValue === '1.2.840.10008.1.2') {
+    return 'IMPLICIT';
+  }
+
+  // Compressed (or unknown) transfer syntax: the data-set encoding is ambiguous in
+  // practice — the standard mandates Implicit VR LE, but some encoders (e.g. DCMTK)
+  // emit Explicit VR LE. Sniff the first data-set tag: if the two bytes after the
+  // tag look like a valid VR, the data set is Explicit VR; otherwise Implicit VR.
+  if (datasetStart !== null && datasetStart < buf.length - 6) {
+    const firstVr = buf.toString('ascii', datasetStart + 4, datasetStart + 6);
+    if (/^[A-Z]{2}$/.test(firstVr)) {
+      return 'EXPLICIT';
+    }
+    return 'IMPLICIT';
+  }
+
   return 'IMPLICIT'; // Default
 }
 
@@ -260,10 +282,104 @@ function patchDicomTags(dicomBuffer, newPatientName, newPatientID) {
   return buf;
 }
 
+/**
+ * Insert a new DICOM tag into the buffer at the given offset.
+ * Handles Implicit VR LE and Explicit VR LE correctly.
+ */
+function insertTag(buf, insertOffset, groupHex, elementHex, value, vr) {
+  const dataIsExplicit = detectDataTransferSyntax(buf) === 'EXPLICIT';
+  const tagBytes = Buffer.from([
+    groupHex & 0xFF, (groupHex >> 8) & 0xFF,
+    elementHex & 0xFF, (elementHex >> 8) & 0xFF,
+  ]);
+
+  // Even-length value (space-padded for odd-length strings)
+  let valueBytes = Buffer.from(value, 'ascii');
+  if (valueBytes.length % 2 !== 0) {
+    const out = Buffer.alloc(valueBytes.length + 1);
+    valueBytes.copy(out);
+    out[valueBytes.length] = 0x20;
+    valueBytes = out;
+  }
+
+  let header;
+  if (dataIsExplicit) {
+    const is32bit = VR_32BIT.includes(vr);
+    if (is32bit) {
+      header = Buffer.alloc(8);
+      Buffer.from(vr, 'ascii').copy(header, 0);
+      header.writeUInt32LE(valueBytes.length, 4);
+    } else {
+      header = Buffer.alloc(4);
+      Buffer.from(vr, 'ascii').copy(header, 0);
+      header.writeUInt16LE(valueBytes.length, 2);
+    }
+  } else {
+    header = Buffer.alloc(4);
+    header.writeUInt32LE(valueBytes.length, 0);
+  }
+
+  const newTag = Buffer.concat([tagBytes, header, valueBytes]);
+  const newBuf = Buffer.alloc(buf.length + newTag.length);
+  buf.copy(newBuf, 0, 0, insertOffset);
+  newTag.copy(newBuf, insertOffset);
+  buf.copy(newBuf, insertOffset + newTag.length, insertOffset);
+  return newBuf;
+}
+
+/**
+ * Set PatientID (0010,0020), replacing it when present and inserting it when
+ * absent (right after PatientName 0010,0010, or at the start of the data set).
+ * Returns a new buffer (or the original if nothing to do).
+ */
+function setPatientID(buf, newID) {
+  const idInfo = findTag(buf, 0x0010, 0x0020);
+
+  if (idInfo) {
+    // Replace existing value
+    const oldLen = idInfo.valueLength;
+    const newVal = Buffer.from(newID, 'ascii');
+    const newLen = newVal.length + (newVal.length % 2); // even-padded length
+    const padded = Buffer.alloc(newLen, 0x20);
+    newVal.copy(padded);
+
+    let lengthOffset, isShortLength;
+    if (idInfo.vr) {
+      if (VR_32BIT.includes(idInfo.vr)) { lengthOffset = idInfo.dataOffset - 4; isShortLength = false; }
+      else { lengthOffset = idInfo.dataOffset - 2; isShortLength = true; }
+    } else {
+      lengthOffset = idInfo.dataOffset - 4; isShortLength = false;
+    }
+
+    if (newLen === oldLen) {
+      const out = Buffer.from(buf);
+      padded.copy(out, idInfo.dataOffset);
+      return out;
+    }
+    const sizeDelta = newLen - oldLen;
+    const newBuf = Buffer.alloc(buf.length + sizeDelta);
+    buf.copy(newBuf, 0, 0, idInfo.dataOffset);
+    padded.copy(newBuf, idInfo.dataOffset);
+    buf.copy(newBuf, idInfo.dataOffset + newLen, idInfo.dataOffset + oldLen);
+    if (isShortLength) newBuf.writeUInt16LE(newLen, lengthOffset);
+    else newBuf.writeUInt32LE(newLen, lengthOffset);
+    return newBuf;
+  }
+
+  // Insert: place it right after PatientName (0010,0010)
+  const nameInfo = findTag(buf, 0x0010, 0x0010);
+  const insertOffset = nameInfo
+    ? nameInfo.dataOffset + nameInfo.valueLength
+    : 132; // fallback: right after the meta header
+  return insertTag(buf, insertOffset, 0x0010, 0x0020, newID, 'LO');
+}
+
 module.exports = {
   extractDigits,
   transformPatientID,
   transformPatientName,
   findTag,
   patchDicomTags,
+  insertTag,
+  setPatientID,
 };

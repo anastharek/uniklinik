@@ -24,6 +24,13 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: true,
         defaultValue: null,
       },
+      // 'manual' = ⚡ button (14-day protected from TTL sweep)
+      // 'auto'   = auto-repreload repair (inherits original trigger)
+      trigger: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: "manual",
+      },
       createdAt: DataTypes.DATE,
       updatedAt: DataTypes.DATE,
     },

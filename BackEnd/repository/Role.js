@@ -135,6 +135,8 @@ class Role{
     copy_osimis,
     copy_stone,
     copy_download_zip,
+    copy_ai_viewer,
+    create_new_study,
     main_table_modality_view,
     delete_dataset,
     manage_report_template,
@@ -143,11 +145,8 @@ class Role{
     patient_management,
     view_radiant,
     view_horos,
-    view_weasis,
-      preload_osimis,
     view_osimis,
     view_aiViewer,
-    view_ohif,
     download_report,
     print_report,
     view_padiLabel
@@ -270,6 +269,8 @@ class Role{
       copy_osimis,
       copy_stone,
       copy_download_zip,
+      copy_ai_viewer,
+      create_new_study,
       main_table_modality_view,
       delete_dataset,
       manage_report_template,
@@ -278,11 +279,8 @@ class Role{
       patient_management,
       view_radiant,
       view_horos,
-      view_weasis,
-      preload_osimis,
       view_osimis,
       view_aiViewer,
-      view_ohif,
       download_report,
       print_report,
       view_padiLabel
@@ -415,6 +413,8 @@ class Role{
     copy_osimis,
     copy_stone,
     copy_download_zip,
+    copy_ai_viewer,
+    create_new_study,
     main_table_modality_view,
     delete_dataset,
     manage_report_template,
@@ -423,11 +423,8 @@ class Role{
     patient_management,
     view_radiant,
     view_horos,
-    view_weasis,
-      preload_osimis,
     view_osimis,
     view_aiViewer,
-    view_ohif,
     download_report,
     print_report,
     view_padiLabel
@@ -549,6 +546,8 @@ class Role{
     role.copy_osimis=copy_osimis;
     role.copy_stone=copy_stone;
     role.copy_download_zip=copy_download_zip;
+    role.copy_ai_viewer=copy_ai_viewer;
+    role.create_new_study=create_new_study;
     role.main_table_modality_view=main_table_modality_view;
     role.delete_dataset=delete_dataset;
     role.manage_report_template=manage_report_template;
@@ -557,11 +556,8 @@ class Role{
     role.patient_management=patient_management;
     role.view_radiant=view_radiant;
     role.view_horos=view_horos;
-    role.view_weasis=view_weasis;
-    role.preload_osimis=preload_osimis;
     role.view_osimis=view_osimis;
     role.view_aiViewer=view_aiViewer;
-    role.view_ohif=view_ohif;
     role.download_report=download_report;
     role.print_report=print_report;
     role.view_padiLabel=view_padiLabel;

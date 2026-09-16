@@ -755,25 +755,17 @@ class PatientReport {
   }
 
   static async checkFinalizeByIDs(ids) {
-    let data = [];
-    for (let i = 0; i < ids.length; i++) {
-      const finalreport = await db.ReportFinal.findOne({
-        where: { study_id: ids[i] },
-      });
-      if (finalreport) {
-        data.push(true);
-      } else {
-        const draftreport = await db.ReportDraft.findOne({
-          where: { study_id: ids[i] },
-        });
-        if (draftreport) {
-          data.push(false);
-        } else {
-          data.push(null);
-        }
-      }
-    }
-    return data;
+    // Batched: 2 queries total (was N+1 — 2 sequential queries per study).
+    // For 282 studies that was 564 round-trips; now it's 2.
+    if (!ids || !ids.length) return [];
+    const [finals, drafts] = await Promise.all([
+      db.ReportFinal.findAll({ where: { study_id: ids } }),
+      db.ReportDraft.findAll({ where: { study_id: ids } }),
+    ]);
+    const finalSet = new Set(finals.map((r) => r.study_id));
+    const draftSet = new Set(drafts.map((r) => r.study_id));
+    // Preserve input order so the frontend's index-based mapping stays correct.
+    return ids.map((id) => (finalSet.has(id) ? true : draftSet.has(id) ? false : null));
   }
 }
 

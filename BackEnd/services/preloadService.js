@@ -42,7 +42,8 @@ const queue = []; // studyIds waiting to run
 let activeCount = 0;
 let pumpBusy = false; // re-entrancy guard for pump()
 const MAX_CONCURRENT = 2; // studies warmed in parallel
-const CACHE_FRESH_MS = 14 * 24 * 60 * 60 * 1000; // 2 weeks
+const CACHE_FRESH_MS = 14 * 24 * 60 * 60 * 1000; // 2 weeks (manual ⚡ preloads)
+const AUTO_FRESH_MS = 72 * 60 * 60 * 1000; // 72h (auto-prewarmed studies — matches TTL sweep)
 const MAX_SERIES_THUMBNAILS = 1; // images warmed per series
 
 // Viewer quality suffix map + series thresholds (shared by study and
@@ -56,7 +57,7 @@ const QUALITY_URL = {
 };
 const SMALL_SERIES_FRAMES = 16;
 const MAX_FRAMES_PER_SERIES = 1000;
-const WARM_CONCURRENCY = 8; // parallel warm requests (Orthanc has 12 cores)
+const WARM_CONCURRENCY = 12; // parallel warm requests (Orthanc has 12 cores; raised from 8 on 2026-08-23 per Anas)
 
 // Flood protection:
 // - CHURN_INSTANCES: how many NEW instances must land in Orthanc (since a
@@ -139,7 +140,9 @@ function isRecordFresh(rec, currentChangesLast) {
   if (isNaN(cachedAt)) return false;
   const hostBoot = getHostBootTime();
   if (hostBoot > 0 && cachedAt < hostBoot) return false; // wiped by reboot
-  if (Date.now() - cachedAt >= CACHE_FRESH_MS) return false;
+  // Auto-prewarmed (daemon) = 72h window; manual ⚡ = 14 days.
+  const ttl = rec.trigger === "auto" ? AUTO_FRESH_MS : CACHE_FRESH_MS;
+  if (Date.now() - cachedAt >= ttl) return false;
   // churn check: only if we have both a recorded seq and a live read
   if (rec.change_seq && currentChangesLast > rec.change_seq) {
     if (currentChangesLast - rec.change_seq > CHURN_INSTANCES) {
@@ -312,9 +315,17 @@ async function orthancWarm(path, timeoutMs = 120000) {
 // transcodes land in Orthanc's caches and OHIF scrolls fast too.
 const OHIF_JLS_ACCEPT =
   "multipart/related; type=image/jls; transfer-syntax=1.2.840.10008.1.2.4.80";
+// XA/XRF/XAR runs are huge uncompressed multi-frame objects. The viewer
+// now requests JPEG-LS for them too (see ohif initWADOImageLoader.js), so
+// the preload warms the JPEG-LS path. Orthanc transcodes the whole object
+// once and caches it — the first warm of a big run pays the transcode, all
+// subsequent views (any frame) hit the cache.
+const OHIF_RAW_ACCEPT =
+  "multipart/related; type=application/octet-stream; transfer-syntax=*";
+const RAW_FRAME_MODALITIES = []; // XA now uses JPEG-LS (warm + serve)
 
 /** Fetch a DICOMweb frame with OHIF's JPEG-LS Accept header. */
-async function orthancWarmOhif(path, timeoutMs = 120000) {
+async function orthancWarmOhif(path, timeoutMs = 120000, acceptHeader = OHIF_JLS_ACCEPT) {
   const url = getOrthancBaseUrl() + path;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -322,7 +333,7 @@ async function orthancWarmOhif(path, timeoutMs = 120000) {
     const res = await fetch(url, {
       headers: {
         Authorization: getAuthHeader(),
-        Accept: OHIF_JLS_ACCEPT,
+        Accept: acceptHeader,
       },
       signal: controller.signal,
     });
@@ -347,22 +358,52 @@ async function warmOhifSeries(seriesId, studyUid, seriesUid) {
     : [];
   if (!insts.length) return { requests: 0, errors: 0 };
 
+  // Modality-aware accept: XA uses JPEG-LS now (cache-friendly), so warm the
+  // JPEG-LS path for everything. For XA specifically, Orthanc transcodes the
+  // WHOLE multi-frame object on the first JPEG-LS frame request and caches it;
+  // warming frame 1 of every instance therefore covers every object in the
+  // series with one request each — no need to warm every frame.
+  let acceptHeader = OHIF_JLS_ACCEPT;
+  let frameCap = MAX_FRAMES_PER_SERIES;
+  let xaMode = false;
+  try {
+    const seriesInfo = await orthancGet(`/series/${seriesId}`, 15000);
+    const modality = (seriesInfo.MainDicomTags || {}).Modality;
+    if (RAW_FRAME_MODALITIES.includes(modality)) {
+      xaMode = true;
+      // One request per instance (frame 1) = one full-object transcode into
+      // Orthanc's JPEG-LS cache. Capped so a 1000-instance angio run doesn't
+      // hammer Orthanc for hours in a single job — the ⚡ button or a second
+      // run covers the rest on demand.
+      frameCap = 250;
+    }
+  } catch (e) {
+    // keep JPEG-LS default
+  }
+
   const requests = [];
   for (const inst of insts) {
     const mt = inst.MainDicomTags || {};
     const sop = mt.SOPInstanceUID;
     if (!sop) continue;
+    if (xaMode) {
+      requests.push(
+        `/dicom-web/studies/${studyUid}/series/${seriesUid}/instances/${sop}/frames/1`
+      );
+      if (requests.length >= frameCap) break;
+      continue;
+    }
     const n =
       parseInt(mt.NumberOfFrames || "1", 10) ||
       (Array.isArray(inst.Instances) ? inst.Instances.length : 1) ||
       1;
-    for (let f = 1; f <= Math.min(n, MAX_FRAMES_PER_SERIES); f++) {
+    for (let f = 1; f <= Math.min(n, frameCap); f++) {
       requests.push(
         `/dicom-web/studies/${studyUid}/series/${seriesUid}/instances/${sop}/frames/${f}`
       );
-      if (requests.length >= MAX_FRAMES_PER_SERIES) break;
+      if (requests.length >= frameCap) break;
     }
-    if (requests.length >= MAX_FRAMES_PER_SERIES) break;
+    if (requests.length >= frameCap) break;
   }
 
   let next = 0;
@@ -371,7 +412,7 @@ async function warmOhifSeries(seriesId, studyUid, seriesUid) {
     while (next < requests.length) {
       const url = requests[next++];
       try {
-        await orthancWarmOhif(url);
+        await orthancWarmOhif(url, 120000, acceptHeader);
       } catch (e) {
         errors += 1;
       }
@@ -383,6 +424,26 @@ async function warmOhifSeries(seriesId, studyUid, seriesUid) {
       worker
     )
   );
+
+  // Warm the series thumbnail into the backend in-memory cache so the first
+  // study-browser render after preload is instant (Orthanc regenerates XA
+  // previews per request otherwise — 1.5-5s each). The viewer fetches the
+  // INSTANCE-level thumbnail, so warm that path (first instance).
+  try {
+    const { warmSeriesThumbnail } = require("../controllers/reverseProxy");
+    const firstSop = (insts[0].MainDicomTags || {}).SOPInstanceUID;
+    if (firstSop) {
+      await warmSeriesThumbnail(
+        `/dicom-web/studies/${studyUid}/series/${seriesUid}/instances/${firstSop}/thumbnail`
+      );
+    }
+    await warmSeriesThumbnail(
+      `/dicom-web/studies/${studyUid}/series/${seriesUid}/thumbnail`
+    );
+  } catch (e) {
+    // best-effort
+  }
+
   return { requests: requests.length, errors };
 }
 
@@ -416,7 +477,7 @@ function getActiveJobs() {
 
 /** Whether a study was cached within the freshness window (2 weeks) */
 
-async function startPreload(studyId) {
+async function startPreload(studyId, trigger = "manual") {
   // Already fresh in cache -> return a synthetic done job without re-running
   if (await isFresh(studyId)) {
     const db = require("../database/models");
@@ -424,6 +485,15 @@ async function startPreload(studyId) {
       where: { study_id: studyId },
       raw: true,
     });
+    // Manual ⚡ click on an auto-warmed study: UPGRADE it to manual so the
+    // TTL sweep protects it for 14 days (never downgrade manual -> auto).
+    if (rec && rec.trigger !== "manual" && trigger !== "auto") {
+      await db.PreloadRecord.update(
+        { trigger: "manual" },
+        { where: { study_id: studyId } }
+      );
+      rec.trigger = "manual";
+    }
     const done = {
       status: "done",
       studyId,
@@ -455,6 +525,7 @@ async function startPreload(studyId) {
   const job = {
     status: "queued",
     studyId,
+    trigger: trigger === "auto" ? "auto" : "manual",
     totalSeries: 0,
     doneSeries: 0,
     totalInstances: 0,
@@ -726,6 +797,7 @@ async function runJob(job) {
       cached_at: new Date(),
       total_series: job.totalSeries,
       change_seq: changeSeq || null,
+      trigger: job.trigger === "auto" ? "auto" : "manual",
     });
   } catch (e) {
     job.error = job.error || `cache persist failed: ${e.message}`;
@@ -956,6 +1028,7 @@ async function getCachedStatus(studyIds) {
       changeSeq: r ? r.change_seq : null,
       currentChangeSeq: current,
       seriesChanged,
+      trigger: r ? r.trigger : null, // 'manual' ⚡ (14d) vs 'auto' daemon-warmed (72h)
     };
   }
   return out;
@@ -984,7 +1057,8 @@ async function repreloadChurned(max = 3) {
     const cachedAt = new Date(r.cached_at).getTime();
     if (isNaN(cachedAt)) continue;
     if (hostBoot > 0 && cachedAt < hostBoot) continue; // reboot-wiped, not our job
-    if (Date.now() - cachedAt >= CACHE_FRESH_MS) continue; // expired anyway
+    const ttl = r.trigger === "auto" ? AUTO_FRESH_MS : CACHE_FRESH_MS;
+    if (Date.now() - cachedAt >= ttl) continue; // expired anyway
     if (current - r.change_seq > CHURN_INSTANCES) {
       churned.push(r.study_id); // fresh window but evicted by flood
     }
@@ -992,7 +1066,11 @@ async function repreloadChurned(max = 3) {
 
   const started = [];
   for (const studyId of churned.slice(0, max)) {
-    const job = await startPreload(studyId);
+    // Preserve the original trigger: a manually-preloaded study that got
+    // churned away by a flood is repaired as 'manual' so its 14-day
+    // protection from the TTL sweep is never downgraded to 72h.
+    const orig = recs.find((r) => r.study_id === studyId);
+    const job = await startPreload(studyId, orig && orig.trigger === "auto" ? "auto" : "manual");
     started.push({ studyId, status: job.status });
   }
   return { churned: churned.length, started };

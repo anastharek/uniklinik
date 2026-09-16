@@ -1,0 +1,12 @@
+{
+  "name": "osimis-viewer-shim",
+  "version": "1.0.0",
+  "description": "Arm64-native reimplementation of the OSIMIS Web Viewer data API (Express shim proxying Orthanc)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

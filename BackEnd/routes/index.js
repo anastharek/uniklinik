@@ -41,6 +41,8 @@ const {
   ownTaskOrIsAdminMidelware,
   autoroutingMidelware,
   userOrExternalAuthMiddleware,
+  captureScopeMidelware,
+  stripCreateDicomInheritedTags,
 } = require("../midelwares/authentication");
 const ActivityType = require("../utils/ActivityType");
 const { log_activity } = require("../midelwares/activity_logger");
@@ -158,9 +160,12 @@ router.get(
 );
 
 // Orthanc Dicom Import Route
+// userOrExternalAuthMiddleware: also allows external/shared-link sessions
+// (external cookie, no JWT) so Capture Image works there too;
+// captureScopeMidelware scopes external uploads to the external study only.
 router.post(
   "/instances",
-  [userAuthMidelware, importMidelware],
+  [userOrExternalAuthMiddleware, captureScopeMidelware],
   reverseProxyPostUploadDicom
 );
 
@@ -179,7 +184,7 @@ router.post(
 //Orthanc Create Dicom Route
 router.post(
   "/tools/create-dicom",
-  [userAuthMidelware, importMidelware],
+  [userAuthMidelware, importMidelware, stripCreateDicomInheritedTags],
   reverseProxyPost
 );
 
@@ -216,11 +221,42 @@ router.post(
 );
 
 //Tools Find API for Orthanc Content Role
+// Orthanc /tools/find does EXACT matching unless the value contains a "*" wildcard.
+// The frontend sends raw partial values (e.g. "NOOR" for "NOOR HASLEENA BINTI OTHMAN")
+// which silently returns 0 results. Append "*" to free-text fields so partial
+// searches work. Keep exact-match fields (StudyDate ranges, ModalitiesInStudy)
+// untouched — wildcards there break matching.
+const TEXT_FIND_FIELDS = [
+  "PatientName",
+  "PatientID",
+  "AccessionNumber",
+  "StudyDescription",
+  "ReferringPhysicianName",
+  "InstitutionName",
+];
+const wildcardFindMiddleware = (req, res, next) => {
+  try {
+    const query = req.body && req.body.Query;
+    if (query && typeof query === "object") {
+      for (const field of TEXT_FIND_FIELDS) {
+        const v = query[field];
+        if (typeof v === "string" && v.length > 0 && !v.includes("*")) {
+          // contains-match: "STROKE" -> "*STROKE*" so mid-string text matches
+          query[field] = "*" + v + "*";
+        }
+      }
+    }
+  } catch (e) {
+    // never break search because of enrichment
+  }
+  next();
+};
 router.post(
   "/tools/find",
   [
     userAuthMidelware,
     contentMidelware,
+    wildcardFindMiddleware,
     (req, res, next) => {
       log_activity(req, res, next, ActivityType.SEARCH_STUDY);
     },
@@ -659,5 +695,17 @@ router.get('/padilabel/:id', userAuthMidelware, PadilabelController.getPadilabel
 router.put('/padilabel/:id', userAuthMidelware, PadilabelController.updatePadilabel);
 router.delete('/padilabel/:id', userAuthMidelware, PadilabelController.deletePadilabel);
 //****************** Padilabel Routes End *********************/
+
+//****************** AI Labeling Routes (Phase 0 POC) *********************/
+router.use('/ailabeling', require('./ailabeling'));
+//****************** AI Labeling Routes End *********************/
+
+//****************** Research Routes (DICOM + NIfTI, Phase 1) *****************/
+router.use('/research', require('./research'));
+//****************** Research Routes End *********************/
+
+//****************** Fusion Routes (shared templates) *********************/
+router.use('/fusion', require('./fusion'));
+//****************** Fusion Routes End *********************/
 
 module.exports = router;
