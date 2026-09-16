@@ -65,7 +65,7 @@ function SubRow({
                 element.StudyOrthancID  //For rishab to adds on - add SeriesOrthancID
               }
               osimis_link={
-                "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
+                "https://uniklinikosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
                 element.StudyOrthancID
               }
               OhifLink={"/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" + element.StudyInstanceUID}

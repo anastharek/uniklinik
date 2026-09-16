@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "react-bootstrap";
 import { useLocation, useParams } from "react-router-dom";
-import Logo from "../../assets/images/fast-logo.png"; //tukar report template - logo customer (FASTPACS default)
+import Logo from "../../assets/images/uniklinik.png"; //tukar report template - logo customer (FASTPACS default)
 import { useSelector } from "react-redux";
 import "./para.css";
 import ActionBoutonView from "../CommonComponents/RessourcesDisplay/ActionButtonView";
@@ -480,7 +480,7 @@ const ViewReport = () => {
               id  //For rishab to adds on - add SeriesOrthancID
             }
             osimis_link={
-              "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
+              "https://uniklinikosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
               id
             }
             OhifLink={"/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" + StudyInstanceUID}

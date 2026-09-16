@@ -12,7 +12,7 @@
 set -euo pipefail
 
 VERSION="${1:-latest}"
-IMAGE="anastharek/pcns-frontend-base:${VERSION}"
+IMAGE="anastharek/pcns-frontend-base-uniklinik:${VERSION}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 cd "$ROOT"

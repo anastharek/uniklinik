@@ -37,13 +37,13 @@ export const ExternalAccess = ({ params }) => {
               // break;
               return openWSI();
             case "stone":
-              redirect = `https://fastpacsviewer.anzverse.com/stone-webviewer/index.html?study=${StudyInstanceId.split("---")[0]}`;
+              redirect = `https://uniklinikviewer.anzverse.com/stone-webviewer/index.html?study=${StudyInstanceId.split("---")[0]}`;
               break;
             case "ohif":
               redirect = `${window.location.protocol}//${window.location.host}/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=${StudyInstanceId.split("---")[0]}`;
               break;
             case "osimis": //tukar link - osimis viewer
-              redirect = `https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=${StudyInstanceId}`; //this is orthanc id
+              redirect = `https://uniklinikosimis.anzverse.com/osimis-viewer/app/index.html?study=${StudyInstanceId}`; //this is orthanc id
               break;
             case "download":
               redirect = `https://strokesvr.padimedical.com/studies/${StudyInstanceId}/archive`;
@@ -56,7 +56,7 @@ export const ExternalAccess = ({ params }) => {
               }/archive`;
               break;
             case "view":
-              redirect = `https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=${StudyInstanceId}`;
+              redirect = `https://uniklinikosimis.anzverse.com/osimis-viewer/app/index.html?study=${StudyInstanceId}`;
               break;
             default:
               alert("Wrong viewer passed to URL");

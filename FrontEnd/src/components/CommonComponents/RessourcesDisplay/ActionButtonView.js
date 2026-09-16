@@ -200,7 +200,7 @@ class ActionBoutonView extends Component {
                 onClick={(e) => {
                   e.preventDefault();
                   this.LogActivity("VIEW STONE");
-                  localStorage.setItem('temp-link',"https://fastpacsviewer.anzverse.com/stone-webviewer/index.html?study=" +this.props.StudyInstanceUID) 
+                  localStorage.setItem('temp-link',"https://uniklinikviewer.anzverse.com/stone-webviewer/index.html?study=" +this.props.StudyInstanceUID) 
                   window.open("/external-page","_blank")
                  }}
                 target="_blank"

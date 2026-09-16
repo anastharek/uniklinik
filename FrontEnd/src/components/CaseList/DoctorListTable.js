@@ -161,7 +161,7 @@ export default function DoctorListTable({ reports, setDelete, refresh }) {
                 row.values.study_id  //For rishab to adds on - add SeriesOrthancID
               }
               osimis_link={
-                "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
+                "https://uniklinikosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
                 row.values.study_id
               }
               OhifLink={"/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" + row.values.StudyInstanceUID}
@@ -244,7 +244,7 @@ export default function DoctorListTable({ reports, setDelete, refresh }) {
               className="otjs-button otjs-button-blue"
               onClick={() => {
                 navigator.clipboard.writeText(
-                  "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
+                  "https://uniklinikosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
                     row.values.study_id
                 );
                 toast.success("Link Copied");
@@ -268,7 +268,7 @@ export default function DoctorListTable({ reports, setDelete, refresh }) {
               className="otjs-button otjs-button-blue"
               onClick={() => {
                 navigator.clipboard.writeText(
-                  "https://fastpacsviewer.anzverse.com/stone-webviewer/index.html?study=" +
+                  "https://uniklinikviewer.anzverse.com/stone-webviewer/index.html?study=" +
                   row.values.StudyInstanceUID,
                 );
                 toast.success("Link Copied");

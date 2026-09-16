@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Suspense } from "react";
-import Logo from "../../assets/images/fast-logo.png"; //tukar report template - logo customer (FASTPACS default)
+import Logo from "../../assets/images/uniklinik.png"; //tukar report template - logo customer (FASTPACS default)
 import { Link, useHistory, useLocation, useParams } from "react-router-dom";
 import { Button } from "react-bootstrap";
 import { useSelector } from "react-redux";
@@ -1029,7 +1029,7 @@ const CreateReport = () => {
                   "https://strokesvr.padimedical.com/wsi/app/index.html?series=" + id //For rishab to adds on - add SeriesOrthancID
                 }
                 osimis_link={
-                  "https://fastpacsosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
+                  "https://uniklinikosimis.anzverse.com/osimis-viewer/app/index.html?study=" +
                   id
                 }
                 OhifLink={"/viewer-ohif/viewer/dicomweb?StudyInstanceUIDs=" + StudyInstanceUID}

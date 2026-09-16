@@ -28,7 +28,7 @@ on:
       - '.github/workflows/build-frontend-base.yml'
 
 env:
-  IMAGE_NAME: anastharek/pcns-frontend-base
+  IMAGE_NAME: anastharek/pcns-frontend-base-uniklinik
   # Target platform. The Mac mini is arm64 (Apple Silicon), and the PACS
   # runtime images are built natively as arm64 — so the pre-built base MUST
   # also be arm64, otherwise `docker pull` fails on the Mac mini.
@@ -103,5 +103,5 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "On the Mac mini, run:" >> "$GITHUB_STEP_SUMMARY"
           echo '```bash' >> "$GITHUB_STEP_SUMMARY"
-          echo "./scripts/build-thin.sh ${{ steps.ver.outputs.version }} fastpacs" >> "$GITHUB_STEP_SUMMARY"
+          echo "./scripts/build-thin.sh ${{ steps.ver.outputs.version }} uniklinik" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"

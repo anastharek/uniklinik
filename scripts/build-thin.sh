@@ -13,7 +13,7 @@ set -euo pipefail
 
 BASE_VERSION="${1:-v9}"
 TAG="${2:-fastpacs}"
-BASE_IMAGE="anastharek/pcns-frontend-base:${BASE_VERSION}"
+BASE_IMAGE="anastharek/pcns-frontend-base-uniklinik:${BASE_VERSION}"
 OUT_IMAGE="anastharek/pcns:${TAG}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 

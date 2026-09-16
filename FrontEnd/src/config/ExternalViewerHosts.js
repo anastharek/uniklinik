@@ -8,9 +8,9 @@
  * centralised here so the deployment can be repointed in exactly one place.
  *
  * FASTPACS deployment hosts:
- *   - OSIMIS viewer shim : fastpacsosimis.anzverse.com  (proxies this PACS' Orthanc,
+ *   - OSIMIS viewer shim : uniklinikosimis.anzverse.com  (proxies this PACS' Orthanc,
  *                          expects the *Orthanc study ID* in ?study=)
- *   - Stone Web Viewer   : fastpacsviewer.anzverse.com  (Orthanc's own Stone viewer)
+ *   - Stone Web Viewer   : uniklinikviewer.anzverse.com  (Orthanc's own Stone viewer)
  *
  * Usage:
  *   import { OSIMIS_VIEWER_HOST, STONE_VIEWER_HOST } from '../../config/ExternalViewerHosts';
@@ -18,10 +18,10 @@
  */
 
 // OSIMIS Web Viewer shim — accepts the Orthanc study ID.
-export const OSIMIS_VIEWER_HOST = 'https://fastpacsosimis.anzverse.com';
+export const OSIMIS_VIEWER_HOST = 'https://uniklinikosimis.anzverse.com';
 
 // Orthanc Stone Web Viewer — accepts the Orthanc study ID.
-export const STONE_VIEWER_HOST = 'https://fastpacsviewer.anzverse.com';
+export const STONE_VIEWER_HOST = 'https://uniklinikviewer.anzverse.com';
 
 // Legacy host that used to serve WSI (whole-slide imaging), downloads and the
 // Orthanc REST archive endpoints. No anZverse equivalent is configured yet, so
