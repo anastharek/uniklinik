@@ -14,8 +14,12 @@ export default function getModalities(Modality, ModalitiesInStudy) {
 
   if (ModalitiesInStudy) {
     if (modalities.vr && modalities.vr === ModalitiesInStudy.vr) {
-      for (let i = 0; i < ModalitiesInStudy.Value.length; i++) {
-        const value = ModalitiesInStudy.Value[i];
+      // Guard against servers returning a tag with an empty/missing Value
+      // (Orthanc can send {"vr":"CS"} with no Value) — would otherwise throw
+      // "Cannot read properties of undefined (reading 'length')".
+      const modalitiesInStudyValue = ModalitiesInStudy.Value || [];
+      for (let i = 0; i < modalitiesInStudyValue.length; i++) {
+        const value = modalitiesInStudyValue[i];
         if (modalities.Value.indexOf(value) === -1) {
           modalities.Value.push(value);
         }
