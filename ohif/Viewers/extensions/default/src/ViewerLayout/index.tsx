@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 
 import { InvestigationalUseDialog } from '@ohif/ui-next';
@@ -9,7 +9,7 @@ import SidePanelWithServices from '../Components/SidePanelWithServices';
 import { Onboarding, ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@ohif/ui-next';
 import useResizablePanels from './ResizablePanelsHook';
 
-const resizableHandleClassName = 'mt-[1px] bg-black';
+const resizableHandleClassName = 'mt-[1px] bg-background';
 
 function ViewerLayout({
   // From Extension Module Params
@@ -70,8 +70,71 @@ function ViewerLayout({
   };
 
   const LoadingIndicatorProgress = customizationService.getCustomization(
-    'ui.loadingIndicatorProgress'
+    'ui.padiMedicalLoadingIndicator' // PadiMedical-branded study loading screen
   );
+
+  // ---- Real loading progress (no fake timers/percentages) ----
+  // Progress is derived ONLY from actual viewer initialization events:
+  //   - displaySetService DISPLAY_SETS_ADDED  → study metadata + display sets ready
+  //   - viewportGridService VIEWPORTS_READY   → viewports created
+  //   - hangingProtocol PROTOCOL_CHANGED      → viewer ready (100% + auto-hide)
+  // Stages with no measurable progress stay indeterminate (progress=null or
+  // held at the last real milestone — the prefetcher is disabled in this
+  // deployment, so per-image counts are NOT fabricated).
+  const [loadingProgress, setLoadingProgress] = useState(0); // 0..100
+  const [loadingStage, setLoadingStage] = useState('Loading study metadata…');
+  const [loadingError, setLoadingError] = useState(null); // user-safe error string
+  const loadingStageRef = useRef(null);
+
+  useEffect(() => {
+    const { displaySetService, viewportGridService } = servicesManager.services;
+
+    // Study metadata loaded → display sets created
+    const dsSub = displaySetService.subscribe(
+      displaySetService.EVENTS.DISPLAY_SETS_ADDED,
+      () => {
+        setLoadingProgress(30);
+        setLoadingStage('Preparing series…');
+      }
+    );
+
+    // Viewports created → images about to render
+    const vpSub = viewportGridService.subscribe(
+      viewportGridService.EVENTS.VIEWPORTS_READY,
+      () => {
+        setLoadingProgress(70);
+        setLoadingStage('Loading images…');
+      }
+    );
+
+    return () => {
+      dsSub.unsubscribe();
+      vpSub.unsubscribe();
+    };
+  }, [servicesManager]);
+
+  // Keep the ref in sync for the timeout guard (no re-subscription churn)
+  useEffect(() => {
+    loadingStageRef.current = loadingStage;
+  }, [loadingStage]);
+
+  // Safety: if the study never produces display sets within 60s, show a
+  // user-safe error instead of an infinite spinner (details go to console).
+  useEffect(() => {
+    if (!showLoadingIndicator) return;
+    const t = setTimeout(() => {
+      if (loadingStageRef.current === 'Loading study metadata…') {
+        setLoadingError(
+          'Timed out while loading study metadata. The server may be busy — please retry.'
+        );
+      }
+    }, 60000);
+    return () => clearTimeout(t);
+  }, [showLoadingIndicator]);
+
+  const handleRetry = useCallback(() => {
+    window.location.reload();
+  }, []);
 
   /**
    * Set body classes (tailwindcss) that don't allow vertical
@@ -79,11 +142,11 @@ function ViewerLayout({
    * is sized to our viewport.
    */
   useEffect(() => {
-    document.body.classList.add('bg-black');
+    document.body.classList.add('bg-background');
     document.body.classList.add('overflow-hidden');
 
     return () => {
-      document.body.classList.remove('bg-black');
+      document.body.classList.remove('bg-background');
       document.body.classList.remove('overflow-hidden');
     };
   }, []);
@@ -108,7 +171,10 @@ function ViewerLayout({
       // hangingProtocolService to finish applying the viewport matching to each viewport,
       // however, this might not be the only approach to set the loading indicator to false. we need to explore this further.
       () => {
-        setShowLoadingIndicator(false);
+        // Show “100% Viewer Ready” briefly, then auto-remove the overlay
+        setLoadingProgress(100);
+        setLoadingStage('Viewer Ready');
+        setTimeout(() => setShowLoadingIndicator(false), 400);
       }
     );
 
@@ -158,11 +224,19 @@ function ViewerLayout({
         appConfig={appConfig}
       />
       <div
-        className="relative flex w-full flex-row flex-nowrap items-stretch overflow-hidden bg-black"
-        style={{ height: 'calc(100vh - 52px' }}
+        className="relative flex w-full flex-row flex-nowrap items-stretch overflow-hidden bg-background"
+        style={{ height: 'calc(100vh - 52px)' }}
       >
         <React.Fragment>
-          {showLoadingIndicator && <LoadingIndicatorProgress className="h-full w-full bg-black" />}
+          {showLoadingIndicator && (
+            <LoadingIndicatorProgress
+              className="h-full w-full bg-background"
+              progress={loadingError ? null : loadingProgress}
+              stageText={loadingError ? loadingError : loadingStage}
+              error={!!loadingError}
+              onRetry={handleRetry}
+            />
+          )}
           <ResizablePanelGroup {...resizablePanelGroupProps}>
             {/* LEFT SIDEPANELS */}
             {hasLeftPanels ? (
@@ -186,7 +260,7 @@ function ViewerLayout({
             <ResizablePanel {...resizableViewportGridPanelProps}>
               <div className="flex h-full flex-1 flex-col">
                 <div
-                  className="relative flex h-full flex-1 items-center justify-center overflow-hidden bg-black"
+                  className="relative flex h-full flex-1 items-center justify-center overflow-hidden bg-background"
                   onMouseEnter={handleMouseEnter}
                 >
                   <ViewportGridComp

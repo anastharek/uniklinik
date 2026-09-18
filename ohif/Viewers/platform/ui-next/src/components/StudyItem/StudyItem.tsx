@@ -1,11 +1,18 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import classnames from 'classnames';
 import { ThumbnailList } from '../ThumbnailList';
 import { PreloadStudyControl } from '../Thumbnail/PreloadStudyControl';
+import { Button } from '../Button';
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../Accordion';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../Tooltip';
+
+// Progressive loading: cap the number of series thumbnails rendered initially
+// per study. Large studies (e.g. 50+ series) would otherwise render every
+// thumbnail at once, causing memory pressure and UI jank. Studies with more
+// than this many series get a "Show more series" control.
+const MAX_INITIAL_SERIES = 30;
 
 const StudyItem = ({
   date,
@@ -25,6 +32,19 @@ const StudyItem = ({
   StudyMenuItems,
   StudyInstanceUID,
 }: withAppTypes) => {
+  const [showAllSeries, setShowAllSeries] = useState(false);
+
+  const visibleDisplaySets = useMemo(() => {
+    if (!displaySets || showAllSeries || displaySets.length <= MAX_INITIAL_SERIES) {
+      return displaySets;
+    }
+    return displaySets.slice(0, MAX_INITIAL_SERIES);
+  }, [displaySets, showAllSeries]);
+
+  const hiddenSeriesCount = displaySets
+    ? displaySets.length - (visibleDisplaySets?.length || 0)
+    : 0;
+
   return (
     <Accordion
       type="single"
@@ -46,7 +66,7 @@ const StudyItem = ({
                     className="w-full"
                     asChild
                   >
-                    <div className="h-[18px] w-full max-w-[160px] overflow-hidden truncate whitespace-nowrap text-left text-white">
+                    <div className="text-foreground h-[18px] w-full max-w-[160px] overflow-hidden truncate whitespace-nowrap text-left">
                       {date}
                     </div>
                   </TooltipTrigger>
@@ -81,9 +101,9 @@ const StudyItem = ({
           }}
         >
           {isExpanded && <PreloadStudyControl StudyInstanceUID={StudyInstanceUID} />}
-          {isExpanded && displaySets && (
+          {isExpanded && visibleDisplaySets && (
             <ThumbnailList
-              thumbnails={displaySets}
+              thumbnails={visibleDisplaySets}
               activeDisplaySetInstanceUIDs={activeDisplaySetInstanceUIDs}
               onThumbnailClick={onClickThumbnail}
               onThumbnailDoubleClick={onDoubleClickThumbnail}
@@ -91,6 +111,18 @@ const StudyItem = ({
               viewPreset={viewPreset}
               ThumbnailMenuItems={ThumbnailMenuItems}
             />
+          )}
+          {isExpanded && hiddenSeriesCount > 0 && (
+            <Button
+              variant="link"
+              className="w-full justify-center py-2 text-[12px]"
+              onClick={event => {
+                event.stopPropagation();
+                setShowAllSeries(true);
+              }}
+            >
+              Show more series ({hiddenSeriesCount} more)
+            </Button>
           )}
         </AccordionContent>
       </AccordionItem>

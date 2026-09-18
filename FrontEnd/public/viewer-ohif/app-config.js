@@ -43,7 +43,7 @@ window.config = {
   // made OHIF decode the whole 60-frame stack (~1.2GB with GPU textures) and
   // crash Safari. 256MB bounds worst-case memory ~512MB (CPU+GPU) — safe on
   // phones and desktops, and CT series (524KB/frame) still prefetch fully.
-  maxCacheSize: 268435456,
+  maxCacheSize: 1073741824,
   showWarningMessageForCrossOrigin: true,
   showCPUFallbackMessage: true,
   showLoadingIndicator: true,

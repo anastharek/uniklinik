@@ -26,6 +26,7 @@
     "buffer": "^6.0.3",
     "bull": "^3.22.11",
     "cookie-parser": "1.4.6",
+    "compression": "^1.7.4",
     "crypto-js": "^4.1.1",
     "cryptr": "^6.3.0",
     "debug": "^4.3.2",

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useSystem } from '@ohif/core';
 
 /**
  * Per-study preload control for the OHIF study browser (PUTRACNS).
@@ -7,22 +8,39 @@ import React, { useEffect, useRef, useState } from 'react';
  * preloads ALL series belonging to THIS StudyInstanceUID only — never other
  * studies of the same patient.
  *
- * Calls the PACS backend /api/preload/:studyId which accepts a DICOM
- * StudyInstanceUID (the backend resolves it to the Orthanc internal study
- * ID). The server-side job warms every series (Osimis + OHIF JPEG-LS paths)
- * with bounded concurrency, then this control polls GET until done and shows
- * live "Loading X / Y series" progress. State persists to localStorage so
- * "✓ ALL SERIES READY" survives page reloads in the same browser.
+ * Stage 1 (server): POST /api/preload/:studyId (accepts the DICOM
+ * StudyInstanceUID; the backend resolves it to the Orthanc internal ID). The
+ * server-side job warms every series (Osimis + OHIF JPEG-LS paths), and this
+ * control polls GET until done showing "Loading X / Y series".
+ * Stage 2 (client): once the server is warm, the frames are downloaded into
+ * the browser's cornerstone cache (warmDisplaySetCache command) so opening
+ * and scrolling any series of the study is instant.
+ *
+ * Server state persists to localStorage (✓ survives reloads). The browser
+ * cache is session-only; the per-series controls re-warm the active series
+ * automatically on later visits.
  */
 const LS_PREFIX = 'putracns_preload_study_';
 
-const PreloadStudyControl = ({ StudyInstanceUID }: { StudyInstanceUID?: string }): React.ReactNode => {
+const PreloadStudyControl = ({
+  StudyInstanceUID,
+  commandsManager: commandsManagerProp,
+}: {
+  StudyInstanceUID?: string;
+  commandsManager?: any;
+}): React.ReactNode => {
+  const { commandsManager } = useSystem();
+  const cm = commandsManagerProp || commandsManager;
+
   const [state, setState] = useState<'idle' | 'preloading' | 'done' | 'error'>(() =>
     StudyInstanceUID && localStorage.getItem(LS_PREFIX + StudyInstanceUID) === 'done' ? 'done' : 'idle'
   );
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [warm, setWarm] = useState<{ loaded: number; total: number } | null>(null);
+  const [warmDone, setWarmDone] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const mountedRef = useRef(true);
+  const warmStartedRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -34,6 +52,28 @@ const PreloadStudyControl = ({ StudyInstanceUID }: { StudyInstanceUID?: string }
       }
     };
   }, []);
+
+  const startWarm = async () => {
+    if (!StudyInstanceUID || !cm || warmStartedRef.current) return;
+    warmStartedRef.current = true;
+    if (mountedRef.current) {
+      setWarm({ loaded: 0, total: 0 });
+      setWarmDone(false);
+    }
+    try {
+      await cm.runCommand('warmDisplaySetCache', {
+        studyInstanceUID: StudyInstanceUID,
+        onProgress: (loaded: number, total: number) => {
+          if (mountedRef.current) setWarm({ loaded, total });
+        },
+      });
+      if (mountedRef.current) setWarmDone(true);
+    } catch (e) {
+      /* best-effort */
+    } finally {
+      if (mountedRef.current) setWarm(null);
+    }
+  };
 
   if (!StudyInstanceUID) {
     return null;
@@ -58,6 +98,8 @@ const PreloadStudyControl = ({ StudyInstanceUID }: { StudyInstanceUID?: string }
       } catch (e) {
         /* ignore */
       }
+      // Server warm done -> now warm the browser cache for the whole study.
+      startWarm();
     } else if (data.status === 'error') {
       stopPolling();
       setState('error');
@@ -113,6 +155,11 @@ const PreloadStudyControl = ({ StudyInstanceUID }: { StudyInstanceUID?: string }
     e.stopPropagation();
   };
 
+  const warmActive = warm && warm.total > 0;
+  const warmPercent = warmActive
+    ? Math.min(100, Math.round(((warm.loaded || 0) / warm.total) * 100))
+    : 0;
+
   const label = (() => {
     if (state === 'preloading') {
       if (progress && progress.total > 0) {
@@ -120,6 +167,7 @@ const PreloadStudyControl = ({ StudyInstanceUID }: { StudyInstanceUID?: string }
       }
       return '⏳ PRELOADING…';
     }
+    if (state === 'done' && warmActive) return `📥 WARMING PHONE CACHE ${warmPercent}%`;
     if (state === 'done') return '✓ ALL SERIES READY';
     if (state === 'error') return '↻ RETRY';
     return '⚡ PRELOAD ALL SERIES';
@@ -144,7 +192,9 @@ const PreloadStudyControl = ({ StudyInstanceUID }: { StudyInstanceUID?: string }
         data-cy="study-preload-button"
         title={
           state === 'done'
-            ? 'All series of this study preloaded — opens instantly'
+            ? warmDone
+              ? 'All series preloaded (server + phone cache) — instant'
+              : 'Server preloaded — phone cache warming…'
             : state === 'error'
             ? 'Preload failed — tap to retry'
             : 'Preload all series of this study (only this StudyInstanceUID)'

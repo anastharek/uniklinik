@@ -65,7 +65,12 @@
     {
       "packageName": "@ohif/extension-ultrasound-pleura-bline",
       "version": "3.0.0"
-    }
+    },
+    {
+      "packageName": "@ohif/extension-padi-ai-labeling",
+      "version": "3.0.0"
+    },
+    "@ohif/extension-padi-nifti"
   ],
   "modes": [
     {

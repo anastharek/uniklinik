@@ -215,16 +215,16 @@
   }
 
   body {
-    @apply !bg-black;
+    @apply !bg-background;
   }
 }
 
 h2.section-header {
-  @apply py-4 text-2xl font-normal text-white;
+  @apply text-foreground py-4 text-2xl font-normal;
 }
 
 h3.section-header {
-  @apply py-3 text-xl text-white;
+  @apply text-foreground py-3 text-xl;
 }
 
 .row {
@@ -264,7 +264,6 @@ input[type='number'] {
   user-select: none;
   opacity: 0.5;
 }
-
 /* ==========================================================================
    MOBILE (max-width: 768px) — single-row horizontally scrollable top toolbar
    Desktop layout is untouched: every rule below lives inside the media query.
@@ -320,12 +319,33 @@ input[type='number'] {
 }
 
 /* ==========================================================================
-   MOBILE (max-width: 768px) — Series/Thumbnail panel scrollbar matches the
-   Viewport Stack Scroll Control design: white high-contrast rounded handle,
-   same 10px visible width, enlarged ~48px finger-friendly hit zone, always
-   visible (type="always" set in StudyBrowser.tsx on mobile), smooth Radix
-   thumb drag. Desktop layout is untouched (rules live inside the query).
+   Series/Thumbnail panel scrollbar — always visible with the white
+   high-contrast rounded handle (matches the Viewport Stack Scroll Control
+   design). type="always" is set in StudyBrowser.tsx on ALL screen sizes so
+   the scroll control is discoverable. Desktop gets a slim 16px hit zone;
+   mobile (<=768px) gets the enlarged ~48px finger-friendly zone.
    ========================================================================== */
+.ohif-studybrowser-scroll [data-radix-scroll-area-scrollbar][data-orientation='vertical'] {
+  width: 16px; /* slim desktop hit zone */
+  padding: 4px 2px;
+  background: transparent;
+}
+
+.ohif-studybrowser-scroll [data-radix-scroll-area-thumb] {
+  width: 10px; /* same visible width as the viewport stack handle */
+  min-width: 10px;
+  max-width: 10px;
+  margin: 0 auto; /* center the visible handle inside the hit zone */
+  background-color: hsl(0 0% 100%);
+  border-radius: 10px;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.85);
+}
+
+.ohif-studybrowser-scroll [data-radix-scroll-area-thumb]:active,
+.ohif-studybrowser-scroll [data-radix-scroll-area-thumb]:hover {
+  background-color: hsl(0 0% 90%);
+}
+
 @media (max-width: 768px) {
   .ohif-studybrowser-scroll [data-radix-scroll-area-scrollbar][data-orientation='vertical'] {
     width: 48px; /* finger-friendly touch zone (Radix thumb drag + track tap) */
@@ -334,10 +354,10 @@ input[type='number'] {
   }
 
   .ohif-studybrowser-scroll [data-radix-scroll-area-thumb] {
-    width: 10px; /* same visible width as the viewport stack handle */
+    width: 10px;
     min-width: 10px;
     max-width: 10px;
-    margin: 0 auto; /* center the visible handle inside the 48px hit zone */
+    margin: 0 auto;
     background-color: hsl(0 0% 100%);
     border-radius: 10px;
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.85);

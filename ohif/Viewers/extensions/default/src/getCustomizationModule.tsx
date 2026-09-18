@@ -14,15 +14,18 @@ import sortingCriteriaCustomization from './customizations/sortingCriteriaCustom
 import onDropHandlerCustomization from './customizations/onDropHandlerCustomization';
 import loadingIndicatorProgressCustomization from './customizations/loadingIndicatorProgressCustomization';
 import loadingIndicatorTotalPercentCustomization from './customizations/loadingIndicatorTotalPercentCustomization';
+import padiMedicalLoadingIndicatorCustomization from './customizations/padiMedicalLoadingIndicatorCustomization';
 import progressLoadingBarCustomization from './customizations/progressLoadingBarCustomization';
 import labellingFlowCustomization from './customizations/labellingFlowCustomization';
 import viewportNotificationCustomization from './customizations/notificationCustomization';
 import aboutModalCustomization from './customizations/aboutModalCustomization';
+import appearanceModalCustomization from './customizations/appearanceModalCustomization';
 import userPreferencesCustomization from './customizations/userPreferencesCustomization';
 import reportDialogCustomization from './customizations/reportDialogCustomization';
 import hotkeyBindingsCustomization from './customizations/hotkeyBindingsCustomization';
 import onboardingCustomization from './customizations/onboardingCustomization';
 import instanceSortingCriteriaCustomization from './customizations/instanceSortingCriteriaCustomization';
+import getWorkListCustomization from './customizations/workListCustomization';
 /**
  *
  * Note: this is an example of how the customization module can be used
@@ -37,6 +40,10 @@ export default function getCustomizationModule({ servicesManager, extensionManag
     {
       name: 'helloPage',
       value: helloPageCustomization,
+    },
+    {
+      name: 'theme',
+      value: appearanceModalCustomization,
     },
     {
       name: 'datasources',
@@ -61,6 +68,7 @@ export default function getCustomizationModule({ servicesManager, extensionManag
         ...onDropHandlerCustomization,
         ...loadingIndicatorProgressCustomization,
         ...loadingIndicatorTotalPercentCustomization,
+        ...padiMedicalLoadingIndicatorCustomization,
         ...progressLoadingBarCustomization,
         ...labellingFlowCustomization,
         ...contextMenuUICustomization,
@@ -71,6 +79,7 @@ export default function getCustomizationModule({ servicesManager, extensionManag
         ...hotkeyBindingsCustomization,
         ...onboardingCustomization,
         ...instanceSortingCriteriaCustomization,
+        ...getWorkListCustomization(),
       },
     },
   ];

@@ -24,17 +24,6 @@ const StudyBrowser = ({
   ThumbnailMenuItems,
   StudyMenuItems,
 }: withAppTypes) => {
-  // Mobile (<=768px): keep the panel scrollbar ALWAYS visible so it behaves
-  // like the viewport stack scroll control (white handle, touch-draggable).
-  // Desktop keeps the default hover/auto behaviour.
-  const [isMobile, setIsMobile] = React.useState(false);
-  React.useEffect(() => {
-    const mq = window.matchMedia('(max-width: 768px)');
-    const update = () => setIsMobile(mq.matches);
-    update();
-    mq.addEventListener('change', update);
-    return () => mq.removeEventListener('change', update);
-  }, []);
   const getTabContent = () => {
     const tabData = tabs.find(tab => tab.name === activeTabName);
     const viewPreset = viewPresets
@@ -71,14 +60,14 @@ const StudyBrowser = ({
   };
 
   return (
-    <ScrollArea className="ohif-studybrowser-scroll" type={isMobile ? 'always' : undefined}>
+    <ScrollArea className="ohif-studybrowser-scroll" type="always">
       <div
-        className="bg-bkg-low flex flex-1 flex-col gap-[4px]"
+        className="bg-background flex flex-1 flex-col gap-[4px]"
         data-cy={'studyBrowser-panel'}
       >
         <div className="flex flex-col gap-[4px]">
           {showSettings && (
-            <div className="w-100 bg-bkg-low flex h-[48px] items-center justify-center gap-[10px] px-[8px] py-[10px]">
+            <div className="w-100 bg-background flex h-[48px] items-center justify-center gap-[10px] px-[8px] py-[10px]">
               <>
                 <StudyBrowserViewOptions
                   tabs={tabs}

@@ -33,6 +33,14 @@ function ToolbarLayoutSelectorWithServices({
       },
     },
     {
+      icon: 'layout-dicom-nifti',
+      commandOptions: {
+        numRows: 1,
+        numCols: 2,
+        layoutType: 'dicom-nifti',
+      },
+    },
+    {
       icon: 'layout-four-up',
       commandOptions: {
         numRows: 2,
@@ -106,12 +114,27 @@ function ToolbarLayoutSelectorWithServices({
             protocolId: 'frame-view',
           },
         },
+        {
+          title: 'DICOM + NIfTI',
+          icon: 'layout-dicom-nifti',
+          commandOptions: {
+            numRows: 1,
+            numCols: 2,
+            layoutType: 'dicom-nifti',
+          },
+        },
       ];
 
   // Unified selection handler that dispatches to the appropriate command
   const handleSelectionChange = useCallback(
     (commandOptions, isPreset) => {
-      if (isPreset) {
+      if (commandOptions && commandOptions.layoutType === 'dicom-nifti') {
+        // PUTRACNS research layout: DICOM (left) + NIfTI (right)
+        commandsManager.run({
+          commandName: 'setDicomNiftiLayout',
+          commandOptions,
+        });
+      } else if (isPreset) {
         // Advanced preset selection
         commandsManager.run({
           commandName: 'setHangingProtocol',
@@ -176,7 +199,7 @@ function ToolbarLayoutSelectorWithServices({
           )}
 
           {/* Right Side - Grid Layout */}
-          <div className="bg-muted flex flex-col gap-2.5 border-l-2 border-solid border-black p-2">
+          <div className="bg-muted flex flex-col gap-2.5 border-l-2 border-solid border-background p-2">
             <div className="text-muted-foreground text-xs">{t('Custom')}</div>
             <LayoutSelector.GridSelector
               rows={rows}

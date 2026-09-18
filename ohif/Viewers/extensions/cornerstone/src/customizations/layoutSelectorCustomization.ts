@@ -49,24 +49,36 @@ export default {
         return displaySet;
       });
 
-      return hangingProtocols
-        .map(hp => {
-          if (!hp.isPreset) {
-            return null;
-          }
+      return [
+        ...hangingProtocols
+          .map(hp => {
+            if (!hp.isPreset) {
+              return null;
+            }
 
-          const areValid = _areSelectorsValid(hp, displaySets, hangingProtocolService);
+            const areValid = _areSelectorsValid(hp, displaySets, hangingProtocolService);
 
-          return {
-            icon: hp.icon,
-            title: hp.name,
-            commandOptions: {
-              protocolId: hp.id,
-            },
-            disabled: !areValid,
-          };
-        })
-        .filter(preset => preset !== null);
+            return {
+              icon: hp.icon,
+              title: hp.name,
+              commandOptions: {
+                protocolId: hp.id,
+              },
+              disabled: !areValid,
+            };
+          })
+          .filter(preset => preset !== null),
+        {
+          // PUTRACNS research layout: DICOM (left) + NIfTI (right)
+          icon: 'layout-dicom-nifti',
+          title: 'DICOM + NIfTI',
+          commandOptions: {
+            numRows: 1,
+            numCols: 2,
+            layoutType: 'dicom-nifti',
+          },
+        },
+      ];
     };
 
     return generateAdvancedPresets({ servicesManager });
@@ -84,6 +96,16 @@ export default {
       commandOptions: {
         numRows: 1,
         numCols: 2,
+      },
+    },
+    {
+      // PUTRACNS research layout: original DICOM (left) + NIfTI (right)
+      icon: 'layout-dicom-nifti',
+      title: 'DICOM + NIfTI',
+      commandOptions: {
+        numRows: 1,
+        numCols: 2,
+        layoutType: 'dicom-nifti',
       },
     },
     {

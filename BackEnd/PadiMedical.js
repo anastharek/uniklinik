@@ -5,6 +5,7 @@ var express = require("express");
 var morgan = require("morgan");
 var path = require("path");
 var cookieParser = require("cookie-parser");
+const compression = require("compression");
 const { startSocketServer } = require("./socket/socketServer");
 var apisRouter = require("./routes/index");
 var adminRouter = require("./routes/admin");
@@ -41,6 +42,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: "100mb" }));
 
 app.use(cookieParser());
+app.use(compression({ level: 9 }));
 
 var unless = function (path, middleware) {
   return function (req, res, next) {
