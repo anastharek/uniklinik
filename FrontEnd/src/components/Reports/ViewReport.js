@@ -492,7 +492,7 @@ const ViewReport = () => {
             }
             weasis={"weasis://?studyUID=" + StudyInstanceUID}
             downloadzip={
-              "https://strokesvr.padimedical.com/studies/" + id + "/archive"
+              "/api/studies/" + id + "/archive"
             }
           />
           {roles.can_assign_doctors ? (

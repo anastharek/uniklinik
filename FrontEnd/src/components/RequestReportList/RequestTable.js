@@ -142,7 +142,7 @@ export default function RequestTable({
                 "weasis://?studyUID=" + row.values.StudyInstanceUID
               }
               downloadzip={
-                "https://strokesvr.padimedical.com/studies/" +
+                "/api/studies/" +
                 row.values.study_id +
                 "/archive"
               }
