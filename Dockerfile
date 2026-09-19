@@ -18,7 +18,7 @@
 # Fallback: the original all-in-one Dockerfile is preserved as Dockerfile.full
 # =============================================================================
 
-ARG FRONTEND_BASE=anastharek/pcns-frontend-base:v9
+ARG FRONTEND_BASE=anastharek/pcns-frontend-base-uniklinik:v9
 FROM ${FRONTEND_BASE} AS frontend-base
 
 # ─── Final runtime image ─────────────────────────────────────────────────

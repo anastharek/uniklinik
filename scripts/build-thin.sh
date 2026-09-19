@@ -7,12 +7,12 @@
 #
 # Usage:
 #   ./scripts/build-thin.sh [base-version] [tag]
-#   ./scripts/build-thin.sh v9 fastpacs
+#   ./scripts/build-thin.sh v9 uniklinik
 #
 set -euo pipefail
 
 BASE_VERSION="${1:-v9}"
-TAG="${2:-fastpacs}"
+TAG="${2:-uniklinik}"
 BASE_IMAGE="anastharek/pcns-frontend-base-uniklinik:${BASE_VERSION}"
 OUT_IMAGE="anastharek/pcns:${TAG}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

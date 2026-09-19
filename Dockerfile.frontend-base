@@ -44,17 +44,22 @@ ENV GENERATE_SOURCEMAP=false
 RUN npm run build
 
 
-# ─── OHIF Viewer build (official v3.12.x — requires Node >=18) ───────────
-FROM node:20 AS ohif
+# ─── OHIF Viewer build (v3.13.0 — Node >=24, pnpm 11, rspack) ─────────────
+FROM node:24.15.0-slim AS ohif
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential python3 \
+ && rm -rf /var/lib/apt/lists/*
+RUN npm install -g pnpm@11
 WORKDIR /ohif/Viewers
-RUN yarn config set registry https://registry.npmjs.org \
- && yarn config set network-timeout 600000 \
- && yarn config set prefer-offline true \
- && yarn config set progress false
 COPY ./ohif/Viewers .
-RUN --mount=type=cache,target=/yarn-cache \
-    YARN_CACHE_FOLDER=/yarn-cache yarn install --network-timeout 600000 --frozen-lockfile \
- && PUBLIC_URL=/viewer-ohif/ NODE_OPTIONS=--max-old-space-size=4096 yarn run build
+ARG QUICK_BUILD=false
+ENV QUICK_BUILD=${QUICK_BUILD}
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --no-frozen-lockfile \
+ && node scripts/patch-cornerstone.mjs \
+ && cd platform/app \
+ && PUBLIC_URL=/viewer-ohif/ NODE_OPTIONS=--max-old-space-size=4096 \
+    npx rspack build --config .webpack/webpack.pwa.js
 
 
 # ─── Stone Web Viewer assets ─────────────────────────────────────────────
